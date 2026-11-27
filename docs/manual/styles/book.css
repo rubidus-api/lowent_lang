@@ -395,11 +395,14 @@ figure.fig figcaption { margin-top:.5rem; font-size:.92rem; color:var(--muted); 
 .toc { columns:24rem; column-gap:2.4rem; }
 .toc-part { break-inside:avoid; margin:1.1rem 0 .3rem; font-size:.95rem; letter-spacing:.02em;
             font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
-.toc-part:first-child { margin-top:0; }
+.toc > .toc-part:first-child, .toc > .toc-keep:first-child > .toc-part, .toc-full > .toc-part:first-child { margin-top:0; }
 .toc-front { margin-bottom:.4rem; }
 /* 차례도 선 없이 --- 왼쪽 세로줄과 장마다의 밑줄을 걷어 낸다(저자 지시 2026-08-10).
    여기는 장치가 아니라 목록이라 선이 뜻하는 바가 없다. */
-.toc-group { break-inside:avoid; padding-left:.85rem; }
+/* 줄은 단을 넘어 흐른다. 부 제목은 첫 줄들과, 마지막 줄들은 서로 붙어 다닌다(.toc-keep — wrap-html.py 가 만든다).
+   그래서 부 제목만 단 끝에 남지 않는다(2026-11-27). */
+.toc-group { padding-left:.85rem; }
+.toc-keep, .toc a { break-inside:avoid; }
 .toc a { display:block; padding:.28rem 0; text-decoration:none; }
 .toc a:hover { text-decoration:underline; }
 .nav { display:flex; gap:1rem; align-items:center; margin-top:3rem; padding-top:1rem;

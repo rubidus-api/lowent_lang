@@ -402,7 +402,7 @@ static int deps_of(proven_allocator_t heap, const proven_byte_t *buf, proven_siz
 //   그래서 std dir 을 한 번 훑어 이름→파일 지도를 만든다. ambient 환경변수 재지정은 없다
 //   (2D: 예약 이름 해소의 뿌리는 **설치 자체**다 — 실행파일 기준 상대 경로).
 #include <dirent.h>
-typedef struct { char name[64]; char path[512]; } std_mod_t;
+typedef struct { char name[64]; char path[512]; bool tool; } std_mod_t;   // tool = 도구와 함께 온 표준 모듈(../std · ../../lib) — 사용자 스코프가 아니다(RFC-0160 §6 설치 3)
 // ★★★ **칸이 모자라면 말한다** (2026-09-21). 전에는 64 칸이었고, 넘치면 `readdir` 루프가 **조용히**
 //   멈췄다. 표준 라이브러리가 63 개로 자라자 사용자 스코프(`~/.lowent/lib`)에 남은 자리가 한 칸뿐이
 //   되어, `lowentc install` 로 넣은 모듈이 **디렉터리 순서에 따라** 색인에서 사라졌다 — `use greeter .`
@@ -432,7 +432,7 @@ static bool mod_name_of(const proven_byte_t *b, proven_size_t n, char *out, size
     return false;
 }
 
-static void std_scan_dir(const char *dir) {
+static void std_scan_dir(const char *dir, bool tool) {
     low_dir_t d;   // ★ W-20261113-1122 — proven 의 디렉터리 읽기(전엔 opendir · readdir)
     if (!low_dir_open(&d, dir)) return;
     char dn_[256];
@@ -473,6 +473,7 @@ static void std_scan_dir(const char *dir) {
             if (mn > 0 && mn < 64) {
                 low_bfmt(g_std[g_nstd].name, 64, "{}", low_sv(p, (int)mn));
                 low_bfmt(g_std[g_nstd].path, 512, "{}", proven_arg_cstr(fp));
+                g_std[g_nstd].tool = tool;
                 g_nstd++;
             }
             break;
@@ -493,22 +494,81 @@ static void std_scan(const char *argv0) {
     char d1[600], d2[600];
     low_bfmt(d1, sizeof d1, "{}/../std", proven_arg_cstr(exe));        // 설치 레이아웃 <install>/{bin,std}
     low_bfmt(d2, sizeof d2, "{}/../../lib", proven_arg_cstr(exe));     // 개발 트리 impl/build → lowent_lang/lib
-    std_scan_dir(d1);
-    std_scan_dir(d2);
+    std_scan_dir(d1, true);
+    std_scan_dir(d2, true);
     // ★ 사용자 스코프 (RFC-0033 D4) — 관리자 아니어도 설치·해소가 된다. 전역(std)이 먼저
     //   훑리므로 사용자 lib 은 예약 이름을 **가릴 수 없다**(std_find 는 첫 항목이 이긴다).
     const char *home = getenv("HOME");
     if (home) {
         char du[600];
         low_bfmt(du, sizeof du, "{}/.lowent/lib", proven_arg_cstr(home));
-        std_scan_dir(du);
+        std_scan_dir(du, false);
     }
 }
 
-static const char *std_find(const char *name) {
+static const std_mod_t *std_find_ent(const char *name, bool tool_only) {
     for (int i = 0; i < g_nstd; i++)
-        if (strcmp(g_std[i].name, name) == 0) return g_std[i].path;
+        if (strcmp(g_std[i].name, name) == 0 && (g_std[i].tool || !tool_only)) return &g_std[i];
     return NULL;
+}
+
+// ★★ RFC-0160 §6 설치 1 (2026-11-27 · W-20261127-0025) — **`use` 하나를 어디서 찾는가를 한 자리에서 정한다.** 빌드와 설치가 같은 판정을 쓴다 —
+//   설치가 따로 걸으면 «작성자의 빌드는 찾는데 설치본은 못 찾는» 두 번째 규칙이 생긴다(그것이 RFC-0160 §2 의 누락이었다).
+//   decl = 그 `use` 를 적은 파일 · path = `from "…"` 의 글자(생략이면 "") · pkg = 단위의 매니페스트(없으면 NULL).
+//   from-생략은 3계층(예약 std → 매니페스트 → 형제 파일, RFC-0011 §6.3), 경로는 **그것을 적은 파일 기준**이다.
+//   USE_MANIFEST 의 URL 은 out 을 비워 두고 부른 쪽이 받는다(받기 · 핀 · 정책은 빌드의 일이다).
+//   tool_only = 도구와 함께 온 표준 모듈만 예약으로 본다(설치의 계획 — `~/.lowent/lib` 의 다른 설치본은 소비자의 기계에 없을 수 있다).
+typedef enum { USE_STD, USE_MANIFEST, USE_SIBLING, USE_PATH, USE_NONE, USE_ERR } use_kind_t;
+static bool is_url(const char *s);
+static use_kind_t use_classify(const char *argv0, const char *decl, const char *name, const char *path, const low_pkg_t *pkg,
+                               char out[512], const low_pkg_dep_t **mdep_out, const std_mod_t **std_out, bool tool_only) {
+    const char *slash = strrchr(decl, '/');
+    out[0] = 0; *mdep_out = NULL; *std_out = NULL;
+    if (path[0]) {
+        if (path[0] != '/' && slash) low_bfmt(out, 512, "{}{}", low_sv(decl, (int)(slash - decl + 1)), proven_arg_cstr(path));
+        else low_bfmt(out, 512, "{}", proven_arg_cstr(path));
+        return USE_PATH;
+    }
+    std_scan(argv0);
+    const std_mod_t *se = std_find_ent(name, tool_only);   // tool_only = 설치의 계획: 사용자 스코프(다른 설치본)는 소비자에게 없을 수 있다
+    char sib[600];
+    if (slash) low_bfmt(sib, sizeof sib, "{}{}.low", low_sv(decl, (int)(slash - decl + 1)), proven_arg_cstr(name));
+    else        low_bfmt(sib, sizeof sib, "{}.low", proven_arg_cstr(name));
+    bool sib_ok = low_file_readable(sib);   // ★ W-20261113-1122 — proven 의 파일 읽기
+    const low_pkg_dep_t *mdep = pkg ? low_pkg_dep_find(pkg, name) : NULL;
+    if (se) {
+        // ★★★ **자기 자신은 가림이 아니다** (2026-07-26).
+        //   std 모듈이 **다른 std 모듈**을 부르면(예: `growvec` 이 `gvec` 을),
+        //   그 "형제 파일" 은 곧 **std 파일 자신**이다. 그것을 가림으로 읽어
+        //   E-NAME-RESERVED 를 내면 **표준 라이브러리끼리 서로 못 부른다** —
+        //   *네 프로그램이 틀렸다* 고 말하지만 틀린 것은 도구다(교훈 5).
+        //   ⇒ 실경로가 같으면 조용히 통과시킨다. 다르면 규칙은 그대로 문다.
+        if (sib_ok) {
+            char r1[PATH_MAX], r2[PATH_MAX];
+            if (realpath(sib, r1) && realpath(se->path, r2) && strcmp(r1, r2) == 0)
+                sib_ok = false;
+        }
+        if (mdep || sib_ok) {
+            low_fpf(low_stderr(), "E-NAME-RESERVED: `use {} .` — this is a RESERVED (standard) "
+                    "module name, and {} also provides it. A local file must not shadow a "
+                    "standard module: rename it, or import it explicitly with "
+                    "`use {} from \"<path>\" .` so the choice is written down (RFC-0011 §6.3)\n",
+                    proven_arg_cstr(name), proven_arg_cstr(mdep ? "the manifest" : "a sibling file"), proven_arg_cstr(name));
+            return USE_ERR;
+        }
+        low_bfmt(out, 512, "{}", proven_arg_cstr(se->path));
+        *std_out = se;
+        return USE_STD;
+    }
+    if (mdep) {
+        *mdep_out = mdep;
+        if (is_url(mdep->source)) return USE_MANIFEST;
+        if (mdep->source[0] == '/') low_bfmt(out, 512, "{}", proven_arg_cstr(mdep->source));
+        else low_bfmt(out, 512, "{}/{}", proven_arg_cstr(pkg->dir), proven_arg_cstr(mdep->source));
+        return USE_MANIFEST;
+    }
+    if (sib_ok) { low_bfmt(out, 512, "{}", proven_arg_cstr(sib)); return USE_SIBLING; }
+    return USE_NONE;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -737,45 +797,6 @@ static int cmd_build(int nargs, char **args) {
     return 0;
 }
 
-// `lowentc add <name> <source>` — 의존을 매니페스트에 **해시 핀과 함께** 적는다.
-//   적는 순간이 곧 고정하는 순간이다: 핀 없는 추가는 "오늘 서버가 준 것"을 믿는 것이다.
-static int cmd_add(const char *name, const char *source) {
-    if (!name || !source) { low_fpf(low_stderr(), "usage: lowentc add <name> <source-path>\n"); return 2; }
-    low_pkg_t pkg = { 0 };
-    if (!low_pkg_find(".", &pkg)) {
-        low_fpf(low_stderr(), "lowentc add: no pkg.low found — a dependency needs a manifest to live in. "
-                        "Create pkg.low first (package name/version)\n");
-        return 2;
-    }
-    proven_allocator_t heap = lw_heap();
-    char perr[512];
-    if (!low_pkg_load(heap, &pkg, perr)) { low_fpf(low_stderr(), "{}\n", proven_arg_cstr(perr)); return 1; }
-    if (low_pkg_dep_find(&pkg, name)) {
-        low_fpf(low_stderr(), "lowentc add: `{}` is already declared in {} — two declarations for one "
-                        "name means every reader must pick (E-PKG-DUP). Edit the existing line\n",
-                proven_arg_cstr(name), proven_arg_cstr(pkg.path));
-        return 1;
-    }
-    char sp[600];
-    if (source[0] == '/') low_bfmt(sp, sizeof sp, "{}", proven_arg_cstr(source));
-    else low_bfmt(sp, sizeof sp, "{}/{}", proven_arg_cstr(pkg.dir), proven_arg_cstr(source));
-    proven_byte_t *db = NULL; proven_size_t dl = 0;
-    if (!read_file(sp, &db, &dl)) {
-        low_fpf(low_stderr(), "lowentc add: cannot read {} — a dependency the tool cannot see is a "
-                        "dependency nobody checked (E-DEP-MISSING). For URLs, vendor the file first\n", proven_arg_cstr(sp));
-        return 1;
-    }
-    char hex[65];
-    hash_hex(db, dl, hex);
-    low_free(db);
-    low_out_t *f = low_out_open(pkg.path, "a");
-    if (!f) { low_fpf(low_stderr(), "lowentc add: cannot write {}\n", proven_arg_cstr(pkg.path)); return 1; }
-    low_fpf(f, "use {} from \"{}\" hash \"{}\" .\n", proven_arg_cstr(name), proven_arg_cstr(source), proven_arg_cstr(hex));
-    if (low_out_close(f) != 0) { low_fpf(low_stderr(), "lowentc add: cannot write {}\n", proven_arg_cstr(pkg.path)); return 1; }
-    low_pf("added {} from \"{}\" (pinned {:.12}…) to {}\n", proven_arg_cstr(name), proven_arg_cstr(source), proven_arg_cstr(hex), proven_arg_cstr(pkg.path));
-    return 0;
-}
-
 // ── **설정** (RFC-0033 D3 · 2D) — 우선순위: CLI > 프로젝트(./lowpm.local) > 사용자(~/.lowent/config)
 //    > 전역(<install>/config). 비밀·미러는 **소스 밖**이다(RFC-0032 D5) — 소스는 무엇(이름·해시)만
 //    말하고, 어디서·어떻게(미러·토큰)는 기계의 설정이 말한다. 그래서 소스는 공유해도 안전하다.
@@ -976,12 +997,29 @@ static bool is_url(const char *s) {
     return strncmp(s, "http://", 7) == 0 || strncmp(s, "https://", 8) == 0 ||
            strncmp(s, "file://", 7) == 0;
 }
+// ★ RFC-0160 §6 URL 추가 (2026-11-27) — 주소는 다운로드 도구의 **인자 하나**로 넘긴다. 전엔 셸 명령 문자열 안의 큰따옴표에 넣었다 —
+//   `$` · 백틱 · `"` 가 든 주소는 셸이 먼저 읽었다. 주소가 매니페스트에서만 오던 때에도 그랬고, `add <URL>` 은 그것을 명령 줄에서 받는다.
+#include <spawn.h>
+extern char **environ;
+static int run_argv_quiet(char *const argv[]) {
+    low_flush_std();
+    posix_spawn_file_actions_t fa;
+    if (posix_spawn_file_actions_init(&fa) != 0) return -1;
+    posix_spawn_file_actions_addopen(&fa, 1, "/dev/null", O_WRONLY, 0);
+    posix_spawn_file_actions_addopen(&fa, 2, "/dev/null", O_WRONLY, 0);
+    pid_t pid;
+    int rc = posix_spawnp(&pid, argv[0], &fa, NULL, argv, environ);
+    posix_spawn_file_actions_destroy(&fa);
+    if (rc != 0) return -1;
+    int st;
+    while (waitpid(pid, &st, 0) < 0) if (errno != EINTR) return -1;
+    return WIFEXITED(st) ? WEXITSTATUS(st) : -1;
+}
 static bool fetch_url(const char *url, const char *to) {
-    char cmd[2048];
-    low_bfmt(cmd, sizeof cmd, "curl -fsSL -o \"{}\" \"{}\" 2>/dev/null", proven_arg_cstr(to), proven_arg_cstr(url));
-    if (low_system(cmd) == 0) return true;
-    low_bfmt(cmd, sizeof cmd, "wget -qO \"{}\" \"{}\" 2>/dev/null", proven_arg_cstr(to), proven_arg_cstr(url));
-    return low_system(cmd) == 0;
+    char *c1[] = { "curl", "-fsSL", "-o", (char *)to, "--", (char *)url, NULL };
+    if (run_argv_quiet(c1) == 0) return true;
+    char *c2[] = { "wget", "-qO", (char *)to, "--", (char *)url, NULL };
+    return run_argv_quiet(c2) == 0;
 }
 // 핀된 URL 을 캐시에서 얻거나(없으면) 받아 검증해 넣는다. 성공 시 out 에 캐시 경로.
 static bool cache_fetch(const char *name, const char *url, const char *pin, char out[600]) {
@@ -1027,6 +1065,25 @@ static bool cache_fetch(const char *name, const char *url, const char *pin, char
     return true;
 }
 
+// ★ official-only (2C ②층): 해시(무결)로는 부족하다 — **발행자의 서명**이
+//   신뢰 키로 검증돼야 한다. 서명은 <url>.sig 의 분리 서명이다. 빌드와 `add <url>` 이 같은 판정을 쓴다(RFC-0160 §6).
+static bool policy_sig_ok(const char *name, const char *url, const char *cp) {
+    if (strcmp(g_cfg.policy, "official-only") != 0) return true;
+    char su[900], st[736], kn[128];
+    low_bfmt(su, sizeof su, "{}.sig", proven_arg_cstr(url));
+    low_bfmt(st, sizeof st, "{}.sig", proven_arg_cstr(cp));
+    if (!file_exists(st) && !fetch_url(su, st)) remove(st);
+    if (!file_exists(st) || !sig_verify_trusted(cp, st, kn)) {
+        low_fpf(low_stderr(), "E-POLICY-UNSIGNED: policy is official-only, and `{}` "
+                "has no signature a TRUSTED key verifies ({}.sig). The hash pin "
+                "proves the bytes are unchanged; it cannot prove WHO published "
+                "them — that is the signature's question (RFC-0032 D7)\n",
+                proven_arg_cstr(name), proven_arg_cstr(url));
+        return false;
+    }
+    return true;
+}
+
 // `lowentc fetch` — 매니페스트의 URL 의존을 전부 내려받아 캐시에 넣는다(핀 검증).
 //   핀이 없는 것은 **받아서 해시만 보여 준다** — 그 줄을 매니페스트에 적는 것(TOFU 의 승인)은
 //   사람 몫이다. 도구가 몰래 핀을 적으면 그것은 확인이 아니라 눈감기다.
@@ -1068,16 +1125,172 @@ static int cmd_fetch(void) {
 
 // `lowentc install <file.low> [--user|--system|--prefix <dir>]` — 라이브러리를 스코프에 넣는다
 //   (RFC-0033 D4). 기본 = **--user**(`~/.lowent/lib`, 권한 불요). 이름은 파일 이름이 아니라
-//   **파일 안의 `module` 선언**이고, from-상대 의존은 **함께** 복사한다(반쪽 설치는 설치가 아니다).
-static bool copy_file(const char *from, const char *to) {
-    proven_byte_t *b = NULL; proven_size_t n = 0;
-    if (!read_file(from, &b, &n)) return false;
-    low_out_t *o = low_out_open(to, "wb");
-    if (!o) { low_free(b); return false; }
-    size_t w = low_write(o, b, n);
-    int rc = low_out_close(o); low_free(b);
-    return w == n && rc == 0;
+//   **파일 안의 `module` 선언**이다.
+// ★★★ RFC-0160 §6 설치 (2026-11-27 · 소유자 «RFC160 에 따라 진행 바랍니다. 구현 시작.» · W-20261127-0025) —
+//   **설치의 완료 기준은 소비자의 동작이다.** 전에는 본체를 먼저 쓰고 본체에 적힌 의존만 옮겼다: 하위 폴더 경로는 건너뛰었고,
+//   의존의 의존(A → B → C 의 C)은 옮기지 않았고, 복사가 실패해도 경고만 내고 0 으로 끝났다. 작성자의 폴더에서는 돌던 A 가
+//   다른 폴더의 소비자에게는 `E-DEP-MISSING` 이었다(1.44.0 에서 실측).
+//   ⇒ ① 계획: 빌드와 같은 판정(use_classify)으로 의존을 끝까지 따라가 «무엇을 어디에» 를 먼저 다 정한다 — 상대 경로 · 형제 파일 ·
+//        `include_text` 는 옮기고(하위 폴더 그대로), 도구와 함께 온 표준 모듈은 그대로 참조하고, 소비자가 찾을 수 없는 것(매니페스트
+//        전용 · URL · 절대 경로 · 어디서도 안 풀리는 이름)은 **쓰기 전에** 그 선언과 사슬을 말하고 멈춘다.
+//      ② 목적지 검사: 같은 자리에 다른 내용이 있으면 거절하고 그 파일을 둔다 · 같은 내용이면 함께 쓴다(다시 설치 · 중단 뒤 재시도).
+//      ③ 쓰기: 목적지 폴더를 잠그고(flock — 같은 목적지의 두 설치가 줄을 선다), 같은 폴더의 임시 파일에 쓴 뒤 이름을 바꾼다.
+//        의존부터, 소비자가 찾는 본체는 **마지막에** — 본체가 보이면 의존은 이미 있다. 본체 직전에 의존을 다시 해시로 맞춘다.
+//      ④ 실패하면 **이번 호출이 새로 놓은 것만** 치운다. 완료 메시지와 0 은 그 뒤에만 낸다.
+#include <sys/file.h>
+#define INST_MAX 256
+typedef struct {
+    char rel[512];            // 설치 루트 기준 목적 경로 — **소비자가 찾는 철자**(글자로 정규화; 실경로가 아니다)
+    char src[PATH_MAX];       // 원본 실경로
+    char hex[65];
+    char mod[64];             // `module` 선언 — include_text 파일은 ""
+    proven_byte_t *buf; proven_size_t len;
+    int  parent;              // 이 파일을 요구한 항목(본체는 -1) — 막힌 사슬을 말하려고
+    char decl[300];           // 어떤 선언으로 들어왔나
+    bool text;                // include_text 로 읽히는 파일(의존을 훑지 않는다)
+    bool shared;              // 목적지에 같은 내용이 이미 있다 — 쓰지 않는다
+} inst_item_t;
+static inst_item_t g_inst[INST_MAX];
+static int g_ninst;
+
+// 사슬: 본체 → … → 그 파일 (+ 막힌 선언)
+static void inst_chain(int at, const char *decl) {
+    int ch[INST_MAX], n = 0;
+    for (int k = at; k >= 0 && n < INST_MAX; k = g_inst[k].parent) ch[n++] = k;
+    low_fpf(low_stderr(), "  chain:");
+    for (int q = n - 1; q >= 0; q--) low_fpf(low_stderr(), " {}{}", proven_arg_cstr(q == n - 1 ? "" : "→ "), proven_arg_cstr(g_inst[ch[q]].rel));
+    if (decl && decl[0]) low_fpf(low_stderr(), " → {}", proven_arg_cstr(decl));
+    low_fpf(low_stderr(), "\n  Nothing was installed.\n");
 }
+
+// declrel 의 폴더 + p 를 글자로 정규화한다(`.` 은 지우고 `..` 은 한 칸 올라간다). 루트 위로 올라가면 false.
+static bool inst_join(const char *declrel, const char *p, char out[512]) {
+    char tmp[1100];
+    const char *sl = strrchr(declrel, '/');
+    if (sl) low_bfmt(tmp, sizeof tmp, "{}/{}", low_sv(declrel, (int)(sl - declrel)), proven_arg_cstr(p));
+    else low_bfmt(tmp, sizeof tmp, "{}", proven_arg_cstr(p));
+    char *seg[128]; int ns = 0; char *save = NULL;
+    for (char *t = strtok_r(tmp, "/", &save); t; t = strtok_r(NULL, "/", &save)) {
+        if (strcmp(t, ".") == 0) continue;
+        if (strcmp(t, "..") == 0) { if (!ns) return false; ns--; continue; }
+        if (ns >= 128) return false;
+        seg[ns++] = t;
+    }
+    if (!ns) return false;
+    size_t o = 0; out[0] = 0;
+    for (int i = 0; i < ns; i++) {
+        size_t l = strlen(seg[i]);
+        if (o + l + 2 > 512) return false;
+        if (i) out[o++] = '/';
+        memcpy(out + o, seg[i], l); o += l; out[o] = 0;
+    }
+    return true;
+}
+
+static bool inst_inside(const char *real, const char *root) {
+    size_t rl = strlen(root);
+    if (rl == 1 && root[0] == '/') return true;
+    return strncmp(real, root, rl) == 0 && real[rl] == '/';
+}
+
+// 계획에 한 파일을 넣는다. 돌려주는 값 = 항목 번호, 실패 = -1(말한 뒤).
+static int inst_add(const char *rootreal, const char *rel, const char *path, int parent, const char *decl, bool text) {
+    char real[PATH_MAX];
+    if (!realpath(path, real)) {
+        low_fpf(low_stderr(), "lowentc install: E-DEP-MISSING: `{}` — cannot read {}. A file the installed copy needs and the installer "
+                "cannot see would be missing for every consumer\n", proven_arg_cstr(decl), proven_arg_cstr(path));
+        inst_chain(parent, decl);
+        return -1;
+    }
+    if (!inst_inside(real, rootreal)) {
+        low_fpf(low_stderr(), "lowentc install: E-INSTALL-ESCAPE: `{}` reaches {}, outside the package folder {} (the folder of the file "
+                "being installed). The installer copies only what lives under that folder — a path that leaves it, by `..` or through a "
+                "link, would be copied from or to a place nobody chose\n", proven_arg_cstr(decl), proven_arg_cstr(real), proven_arg_cstr(rootreal));
+        inst_chain(parent, decl);
+        return -1;
+    }
+    proven_byte_t *b = NULL; proven_size_t n = 0;
+    if (!read_file(real, &b, &n)) {
+        low_fpf(low_stderr(), "lowentc install: E-DEP-MISSING: `{}` — cannot read {}\n", proven_arg_cstr(decl), proven_arg_cstr(real));
+        inst_chain(parent, decl);
+        return -1;
+    }
+    char hex[65]; hash_hex(b, n, hex);
+    for (int i = 0; i < g_ninst; i++) {
+        if (strcmp(g_inst[i].rel, rel) != 0) continue;
+        if (strcmp(g_inst[i].hex, hex) == 0) { low_free(b); return i; }   // 같은 자리 · 같은 내용 = 하나다(여러 모듈이 같은 파일을 쓴다)
+        low_fpf(low_stderr(), "lowentc install: E-INSTALL-CONFLICT: two files would be installed at the same place `{}` — {} "
+                "(blake3 {:.16}…) and {} (blake3 {:.16}…). One place holds one content\n",
+                proven_arg_cstr(rel), proven_arg_cstr(g_inst[i].src), proven_arg_cstr(g_inst[i].hex), proven_arg_cstr(real), proven_arg_cstr(hex));
+        low_free(b);
+        inst_chain(parent, decl);
+        return -1;
+    }
+    if (g_ninst >= INST_MAX) {
+        low_fpf(low_stderr(), "lowentc install: E-DEP-LIMIT: the package reaches more than {} files, which is all the installer carries — "
+                "installing part of it would leave an incomplete package on disk\n", PROVEN_ARG((int)(INST_MAX)));
+        low_free(b);
+        return -1;
+    }
+    inst_item_t *it = &g_inst[g_ninst];
+    memset(it, 0, sizeof *it);
+    low_bfmt(it->rel, sizeof it->rel, "{}", proven_arg_cstr(rel));
+    low_bfmt(it->src, sizeof it->src, "{}", proven_arg_cstr(real));
+    low_bfmt(it->hex, sizeof it->hex, "{}", proven_arg_cstr(hex));
+    low_bfmt(it->decl, sizeof it->decl, "{}", proven_arg_cstr(decl));
+    it->buf = b; it->len = n; it->parent = parent; it->text = text;
+    if (!text && mod_name_of(b, n, it->mod, sizeof it->mod)) {
+        // ★ 같은 모듈 이름 · 다른 바이트 = 빌드가 E-PKG-DIAMOND 로 거절하는 단위다 — 설치도 거절한다(RFC-0160 §6 설치 2)
+        for (int i = 0; i < g_ninst; i++)
+            if (g_inst[i].mod[0] && strcmp(g_inst[i].mod, it->mod) == 0 && strcmp(g_inst[i].hex, hex) != 0) {
+                low_fpf(low_stderr(), "lowentc install: E-PKG-DIAMOND: module `{}` would be installed twice with DIFFERENT bytes — {} and {}. "
+                        "A build of the installed package would refuse it, so the install refuses first\n",
+                        proven_arg_cstr(it->mod), proven_arg_cstr(g_inst[i].src), proven_arg_cstr(real));
+                low_free(b);
+                inst_chain(parent, decl);
+                return -1;
+            }
+    } else it->mod[0] = 0;
+    return g_ninst++;
+}
+
+static void inst_free(void) { for (int i = 0; i < g_ninst; i++) low_free(g_inst[i].buf); g_ninst = 0; }
+
+// 같은 폴더의 임시 파일에 쓰고 이름을 바꾼다 — 읽는 쪽은 옛 파일이나 새 파일을 보고, 반쯤 쓴 파일은 보지 않는다.
+static bool inst_put(const char *target, const proven_byte_t *b, proven_size_t n) {
+    char tmp[1400];
+    const char *sl = strrchr(target, '/');
+    low_bfmt(tmp, sizeof tmp, "{}.{}.install-{}", low_sv(target, (int)(sl - target + 1)), proven_arg_cstr(sl + 1), PROVEN_ARG((int)getpid()));
+    int fd = open(tmp, O_WRONLY | O_CREAT | O_EXCL, 0644);
+    if (fd < 0) return false;
+    proven_size_t off = 0;
+    while (off < n) {
+        ssize_t w = write(fd, b + off, n - off);
+        if (w <= 0) { if (w < 0 && errno == EINTR) continue; close(fd); remove(tmp); return false; }
+        off += (proven_size_t)w;
+    }
+    if (fsync(fd) != 0) { close(fd); remove(tmp); return false; }
+    if (close(fd) != 0) { remove(tmp); return false; }
+    if (rename(tmp, target) != 0) { remove(tmp); return false; }
+    return true;
+}
+
+static bool inst_same(const char *path, const char *hex) {
+    proven_byte_t *b = NULL; proven_size_t n = 0;
+    if (!read_file(path, &b, &n)) return false;
+    char h[65]; hash_hex(b, n, h); low_free(b);
+    return strcmp(h, hex) == 0;
+}
+
+#define INST_MADE 1024
+static char g_made[INST_MADE][1100];   // 이번 호출이 새로 놓은 파일 · 폴더(되돌릴 때 이것만 치운다)
+static bool g_made_dir[INST_MADE];
+static int  g_nmade;
+static void inst_rollback(void) {
+    for (int i = g_nmade - 1; i >= 0; i--) { if (g_made_dir[i]) rmdir(g_made[i]); else remove(g_made[i]); }
+    g_nmade = 0;
+}
+
 static int cmd_install(int nargs, char **args) {
     const char *src = NULL, *prefix = NULL;
     bool sys = false;
@@ -1090,19 +1303,86 @@ static int cmd_install(int nargs, char **args) {
     if (!src) { low_fpf(low_stderr(), "usage: lowentc install <file.low> [--user | --system | --prefix <dir>]\n"); return 2; }
     proven_byte_t *b = NULL; proven_size_t n = 0;
     if (!read_file(src, &b, &n)) { low_fpf(low_stderr(), "lowentc install: cannot read {}\n", proven_arg_cstr(src)); return 1; }
-    // 모듈 이름 = 파일 안의 선언
     char mod[64] = { 0 };
-    for (const char *p = (const char *)b; p && (proven_size_t)(p - (const char *)b) < n; ) {
-        while (*p == ' ' || *p == '\n') p++;
-        if (strncmp(p, "module ", 7) == 0) {
-            p += 7;
-            const char *q = p; while (*q && *q != ' ' && *q != '\n' && *q != '.') q++;
-            if (q - p > 0 && q - p < 64) low_bfmt(mod, sizeof mod, "{}", low_sv(p, (int)(q - p)));
-            break;
-        }
-        p = strchr(p, '\n');
+    bool named = mod_name_of(b, n, mod, sizeof mod);   // 빌드의 색인과 같은 규칙
+    low_free(b);
+    if (!named) { low_fpf(low_stderr(), "lowentc install: {} declares no `module` — there is nothing to name the installation after\n", proven_arg_cstr(src)); return 1; }
+
+    // ── ① 계획 (원본 쪽) ──
+    char sreal[PATH_MAX], root[PATH_MAX];
+    if (!realpath(src, sreal)) { low_fpf(low_stderr(), "lowentc install: cannot read {}\n", proven_arg_cstr(src)); return 1; }
+    low_bfmt(root, sizeof root, "{}", proven_arg_cstr(sreal));
+    { char *sl = strrchr(root, '/'); if (sl == root) root[1] = 0; else if (sl) *sl = 0; }
+    low_pkg_t pkg = { 0 };   // 작성자의 매니페스트 — 그것이 푸는 의존은 소비자가 못 읽는다(아래에서 거절)
+    proven_allocator_t heap = lw_heap();
+    if (low_pkg_find(root, &pkg)) {
+        char perr[512];
+        if (!low_pkg_load(heap, &pkg, perr)) { low_fpf(low_stderr(), "{}\n", proven_arg_cstr(perr)); return 1; }
     }
-    if (!mod[0]) { low_free(b); low_fpf(low_stderr(), "lowentc install: {} declares no `module` — there is nothing to name the installation after\n", proven_arg_cstr(src)); return 1; }
+    char mainrel[512]; low_bfmt(mainrel, sizeof mainrel, "{}.low", proven_arg_cstr(mod));
+    g_ninst = 0;
+    if (inst_add(root, mainrel, sreal, -1, "", false) < 0) return 1;
+    static char dn[MAX_DEPS_PER_FILE][64], dpp[MAX_DEPS_PER_FILE][256];
+    for (int i = 0; i < g_ninst; i++) {
+        if (g_inst[i].text) continue;
+        int dtotal = 0;
+        int nd = deps_of(heap, g_inst[i].buf, g_inst[i].len, dn, dpp, MAX_DEPS_PER_FILE, &dtotal);
+        if (dtotal > nd) {
+            low_fpf(low_stderr(), "lowentc install: E-DEP-LIMIT: {} declares {} dependencies and the installer carries {} per file — installing "
+                    "only part of them would put an INCOMPLETE package on disk\n", proven_arg_cstr(g_inst[i].src), PROVEN_ARG((int)(dtotal)), PROVEN_ARG((int)(nd)));
+            inst_free(); return 1;
+        }
+        for (int d = 0; d < nd; d++) {
+            char decl[300], out[512], rel[512];
+            if (dpp[d][0]) low_bfmt(decl, sizeof decl, "use {} from \"{}\"", proven_arg_cstr(dn[d]), proven_arg_cstr(dpp[d]));
+            else low_bfmt(decl, sizeof decl, "use {} .", proven_arg_cstr(dn[d]));
+            const low_pkg_dep_t *md = NULL; const std_mod_t *se = NULL;
+            use_kind_t uk = use_classify("lowentc", g_inst[i].src, dn[d], dpp[d], pkg.found ? &pkg : NULL, out, &md, &se, true);
+            const char *why = NULL;
+            if (uk == USE_ERR) { inst_chain(i, decl); inst_free(); return 1; }
+            if (uk == USE_STD) continue;   // 도구와 함께 온 표준 모듈 — 소비자의 도구가 같은 자리에서 찾는다(RFC-0160 §6 설치 3)
+            if (uk == USE_MANIFEST) why = "it is resolved by the source package's manifest (pkg.low), which a consumer's build does not read";
+            else if (uk == USE_NONE) why = "it names neither a standard module shipped with the tool nor a file next to the declaring file, so a consumer could not find it";
+            else if (uk == USE_PATH && strstr(dpp[d], "://")) why = "a URL is not copied by the installer — add it to the consumer's manifest with `lowentc add` instead";
+            else if (uk == USE_PATH && dpp[d][0] == '/') why = "an absolute path names a place on THIS machine, which the installed copy cannot carry";
+            if (why) {
+                low_fpf(low_stderr(), "lowentc install: E-INSTALL-UNSUPPORTED: `{}` in {} — {}. The first edition installs relative "
+                        "paths, sibling files and standard modules (RFC-0160 §6 설치 3)\n", proven_arg_cstr(decl), proven_arg_cstr(g_inst[i].rel), proven_arg_cstr(why));
+                inst_chain(i, decl); inst_free(); return 1;
+            }
+            char p[300];
+            if (uk == USE_SIBLING) low_bfmt(p, sizeof p, "{}.low", proven_arg_cstr(dn[d]));
+            else low_bfmt(p, sizeof p, "{}", proven_arg_cstr(dpp[d]));
+            if (!inst_join(g_inst[i].rel, p, rel)) {
+                low_fpf(low_stderr(), "lowentc install: E-INSTALL-ESCAPE: `{}` in {} climbs above the package folder {}\n",
+                        proven_arg_cstr(decl), proven_arg_cstr(g_inst[i].rel), proven_arg_cstr(root));
+                inst_chain(i, decl); inst_free(); return 1;
+            }
+            if (inst_add(root, rel, out, i, decl, false) < 0) { inst_free(); return 1; }
+        }
+        // `include_text "<경로>"` 의 파일도 설치본이 읽는다 — 빌드와 같은 규칙(그 소스 파일의 폴더 안)으로 찾는다
+        low_lex_result_t ix = low_lex(heap, (proven_u8str_view_t){ .ptr = g_inst[i].buf, .size = g_inst[i].len });
+        const low_token_t *t = (const low_token_t *)ix.tokens.data;
+        bool iok = true;
+        for (proven_size_t q = 0; q + 1 < ix.tokens.len && iok; q++) {
+            if (t[q].kind != LOW_TOK_IDENT || !proven_u8str_view_eq(t[q].lex, PROVEN_LIT("include_text")) || t[q + 1].kind != LOW_TOK_STRING) continue;
+            char p[402], real[4096], why[400], decl[440], rel[512];
+            low_bfmt(p, sizeof p, "{}", low_sv((const char *)t[q + 1].lex.ptr, (int)t[q + 1].lex.size));
+            low_bfmt(decl, sizeof decl, "include_text \"{}\"", proven_arg_cstr(p));
+            if (!inc_resolve(g_inst[i].src, p, real, why, sizeof why)) {
+                low_fpf(low_stderr(), "lowentc install: E-DEP-MISSING: {}\n", proven_arg_cstr(why));
+                inst_chain(i, decl); iok = false; break;
+            }
+            if (!inst_join(g_inst[i].rel, p, rel) || inst_add(root, rel, real, i, decl, true) < 0) {
+                if (iok) low_fpf(low_stderr(), "lowentc install: E-INSTALL-ESCAPE: `{}` in {} climbs above the package folder\n", proven_arg_cstr(decl), proven_arg_cstr(g_inst[i].rel));
+                iok = false; break;
+            }
+        }
+        proven_array_destroy(&ix.diags); proven_array_destroy(&ix.tokens);
+        if (!iok) { inst_free(); return 1; }
+    }
+
+    // ── 목적지 ──
     char dest[600];
     if (prefix) low_bfmt(dest, sizeof dest, "{}", proven_arg_cstr(prefix));
     else if (sys) {
@@ -1113,47 +1393,435 @@ static int cmd_install(int nargs, char **args) {
         low_bfmt(dest, sizeof dest, "{}/../std", proven_arg_cstr(self));
     } else {
         const char *home = getenv("HOME");
-        if (!home) { low_free(b); low_fpf(low_stderr(), "lowentc install: no HOME — use --prefix <dir>\n"); return 1; }
+        if (!home) { inst_free(); low_fpf(low_stderr(), "lowentc install: no HOME — use --prefix <dir>\n"); return 1; }
         char base[600];
         low_bfmt(base, sizeof base, "{}/.lowent", proven_arg_cstr(home)); mkdir(base, 0755);
         low_bfmt(dest, sizeof dest, "{}/.lowent/lib", proven_arg_cstr(home));
     }
     mkdir(dest, 0755);
-    // 본체 + from-상대 의존을 함께 (기준은 소스 파일의 dir — RFC-0032 "경로는 선언한 파일 기준")
-    char sdir[600];
-    low_bfmt(sdir, sizeof sdir, "{}", proven_arg_cstr(src));
-    { char *sl = strrchr(sdir, '/'); if (sl) *sl = 0; else low_bfmt(sdir, sizeof sdir, "."); }
-    char to[736];
-    low_bfmt(to, sizeof to, "{}/{}.low", proven_arg_cstr(dest), proven_arg_cstr(mod));
-    low_out_t *o = low_out_open(to, "wb");
-    bool wrote_ = o && low_write(o, b, n) == n;
-    if (o && low_out_close(o) != 0) wrote_ = false;   // ★ 닫기가 쓰기가 닿았는지 답한다
-    if (!wrote_) { low_free(b); low_fpf(low_stderr(), "lowentc install: cannot write {} (need --prefix or permissions?)\n", proven_arg_cstr(to)); return 1; }
-    char hex[65]; hash_hex(b, n, hex);
-    low_pf("installed {} → {} ({:.12}…)\n", proven_arg_cstr(mod), proven_arg_cstr(to), proven_arg_cstr(hex));
-    // 전이: 이 파일의 from-상대 의존
-    proven_allocator_t heap = lw_heap();
-    static char dn[MAX_DEPS_PER_FILE][64], dpp[MAX_DEPS_PER_FILE][256];
-    int dtotal = 0;
-    int nd = deps_of(heap, b, n, dn, dpp, MAX_DEPS_PER_FILE, &dtotal);
-    if (dtotal > nd) {
-        low_fpf(low_stderr(), "E-DEP-LIMIT: this file declares {} dependencies and the installer carries "
-                "{} — installing only part of them would put an INCOMPLETE package on disk. "
-                "Refusing is the honest answer (split the module, or raise MAX_DEPS_PER_FILE "
-                "and say why)\n", PROVEN_ARG((int)(dtotal)), PROVEN_ARG((int)(nd)));
-        low_free(b);
+    char droot[PATH_MAX];
+    int lfd = -1;
+    if (!realpath(dest, droot) || (lfd = open(droot, O_RDONLY | O_DIRECTORY)) < 0) {
+        low_fpf(low_stderr(), "lowentc install: E-INSTALL-WRITE: cannot open the destination folder {} (need --prefix or permissions?)\n", proven_arg_cstr(dest));
+        inst_free(); return 1;
+    }
+    // ★ 같은 목적지의 설치는 줄을 선다 — 폴더 자체를 잠근다(잠금 파일을 남기지 않고, 이름 바꾸기와 무관하다)
+    if (flock(lfd, LOCK_EX) != 0) {
+        low_fpf(low_stderr(), "lowentc install: E-INSTALL-WRITE: cannot lock {}\n", proven_arg_cstr(droot));
+        close(lfd); inst_free(); return 1;
+    }
+    int rc = 1;
+    g_nmade = 0;
+    // ── ② 목적지 검사 — 아무것도 쓰기 전에 전부 ──
+    std_scan("lowentc");
+    for (int i = 0; i < g_ninst; i++) {
+        inst_item_t *it = &g_inst[i];
+        char target[1100], cur[1100];
+        low_bfmt(target, sizeof target, "{}/{}", proven_arg_cstr(droot), proven_arg_cstr(it->rel));
+        // 이미 있는 윗 폴더는 폴더여야 하고, 링크로 목적지 밖을 가리키면 안 된다
+        low_bfmt(cur, sizeof cur, "{}", proven_arg_cstr(droot));
+        char relcp[512]; low_bfmt(relcp, sizeof relcp, "{}", proven_arg_cstr(it->rel));
+        char *save = NULL, *seg = strtok_r(relcp, "/", &save);
+        while (seg) {
+            char *next = strtok_r(NULL, "/", &save);
+            if (!next) break;   // 마지막 조각은 파일
+            size_t cl = strlen(cur);
+            low_bfmt(cur + cl, sizeof cur - cl, "/{}", proven_arg_cstr(seg));
+            struct stat st;
+            if (stat(cur, &st) != 0) break;   // 없다 — 쓸 때 만든다(그 아래도 없다)
+            char cr[PATH_MAX];
+            if (!S_ISDIR(st.st_mode)) {
+                low_fpf(low_stderr(), "lowentc install: E-INSTALL-WRITE: {} is needed as a folder for `{}`, but it is not a folder — nothing "
+                        "was changed\n", proven_arg_cstr(cur), proven_arg_cstr(it->rel));
+                goto done;
+            }
+            if (!realpath(cur, cr) || !inst_inside(cr, droot)) {
+                low_fpf(low_stderr(), "lowentc install: E-INSTALL-ESCAPE: {} leads outside the destination {} through a link — nothing was changed\n",
+                        proven_arg_cstr(cur), proven_arg_cstr(droot));
+                goto done;
+            }
+            seg = next;
+        }
+        struct stat ts;
+        if (lstat(target, &ts) == 0) {
+            char tr[PATH_MAX];
+            if (S_ISLNK(ts.st_mode) && (!realpath(target, tr) || !inst_inside(tr, droot))) {
+                low_fpf(low_stderr(), "lowentc install: E-INSTALL-ESCAPE: {} is a link that leads outside the destination — nothing was changed\n", proven_arg_cstr(target));
+                goto done;
+            }
+            if (inst_same(target, it->hex)) { it->shared = true; continue; }
+            low_fpf(low_stderr(), "lowentc install: E-INSTALL-CONFLICT: {} already exists with DIFFERENT content (installing {:.16}…). The "
+                    "installer does not replace another file — it may belong to another package. It was kept; nothing was changed. "
+                    "Remove it on purpose to replace it\n", proven_arg_cstr(target), proven_arg_cstr(it->hex));
+            goto done;
+        }
+        // 맨 윗자리의 모듈은 이름으로 찾힌다 — 같은 폴더의 다른 파일이 같은 모듈 이름의 다른 내용을 갖고 있거나,
+        //   그 이름이 도구의 표준 모듈이면 `use <이름> .` 이 이 파일을 찾지 않는다
+        if (!strchr(it->rel, '/') && it->mod[0]) {
+            const std_mod_t *se = std_find_ent(it->mod, true);
+            char sr[PATH_MAX];
+            if (se && !(realpath(se->path, sr) && strcmp(sr, target) == 0)) {
+                low_fpf(low_stderr(), "lowentc install: E-NAME-RESERVED: module `{}` ({}) has the name of a standard module shipped with the tool "
+                        "({}) — `use {} .` would find the standard one, not this. Rename the module — nothing was changed\n",
+                        proven_arg_cstr(it->mod), proven_arg_cstr(it->rel), proven_arg_cstr(se->path), proven_arg_cstr(it->mod));
+                goto done;
+            }
+            low_dir_t dd;
+            if (low_dir_open(&dd, droot)) {
+                char nm[256]; bool clash = false;
+                while (!clash && low_dir_next(&dd, nm, sizeof nm)) {
+                    size_t ln = strlen(nm);
+                    if (ln < 5 || strcmp(nm + ln - 4, ".low") != 0 || strcmp(nm, it->rel) == 0 || nm[0] == '.') continue;
+                    char fp[1400]; low_bfmt(fp, sizeof fp, "{}/{}", proven_arg_cstr(droot), proven_arg_cstr(nm));
+                    proven_byte_t *ob = NULL; proven_size_t on = 0; char om[64];
+                    if (!read_file(fp, &ob, &on)) continue;
+                    if (mod_name_of(ob, on, om, sizeof om) && strcmp(om, it->mod) == 0) {
+                        char oh[65]; hash_hex(ob, on, oh);
+                        if (strcmp(oh, it->hex) != 0) {
+                            low_fpf(low_stderr(), "lowentc install: E-INSTALL-CONFLICT: {} already holds module `{}` with DIFFERENT content — "
+                                    "`use {} .` could find either. It was kept; nothing was changed\n", proven_arg_cstr(fp), proven_arg_cstr(it->mod), proven_arg_cstr(it->mod));
+                            clash = true;
+                        }
+                    }
+                    low_free(ob);
+                }
+                low_dir_close(&dd);
+                if (clash) goto done;
+            }
+        }
+    }
+    // ── ③ 쓰기: 의존부터(항목 1…), 본체(항목 0)는 마지막 ──
+    for (int k = 1; k <= g_ninst; k++) {
+        int i = k == g_ninst ? 0 : k;
+        inst_item_t *it = &g_inst[i];
+        char target[1100];
+        low_bfmt(target, sizeof target, "{}/{}", proven_arg_cstr(droot), proven_arg_cstr(it->rel));
+        if (i == 0) {
+            // ★ 본체를 공개하기 직전에 의존을 다시 맞춘다 — 본체가 보이는 순간 의존은 이미 그 내용이어야 한다
+            for (int j = 1; j < g_ninst; j++) {
+                char dt[1100]; low_bfmt(dt, sizeof dt, "{}/{}", proven_arg_cstr(droot), proven_arg_cstr(g_inst[j].rel));
+                if (!inst_same(dt, g_inst[j].hex)) {
+                    low_fpf(low_stderr(), "lowentc install: E-INSTALL-WRITE: {} does not hold the content just written — the main file was not "
+                            "published; this call's files were removed\n", proven_arg_cstr(dt));
+                    inst_rollback(); goto done;
+                }
+            }
+        }
+        if (it->shared) continue;
+        errno = 0;
+        // 윗 폴더를 만든다(만든 것은 되돌릴 목록에)
+        char cur[1100]; low_bfmt(cur, sizeof cur, "{}", proven_arg_cstr(droot));
+        char relcp[512]; low_bfmt(relcp, sizeof relcp, "{}", proven_arg_cstr(it->rel));
+        char *save = NULL, *seg = strtok_r(relcp, "/", &save);
+        bool ok = true;
+        while (seg && ok) {
+            char *next = strtok_r(NULL, "/", &save);
+            if (!next) break;
+            size_t cl = strlen(cur);
+            low_bfmt(cur + cl, sizeof cur - cl, "/{}", proven_arg_cstr(seg));
+            if (mkdir(cur, 0755) == 0) {
+                if (g_nmade < INST_MADE) { low_bfmt(g_made[g_nmade], sizeof g_made[0], "{}", proven_arg_cstr(cur)); g_made_dir[g_nmade++] = true; }
+            } else if (errno != EEXIST) ok = false;
+            else { struct stat st; if (stat(cur, &st) != 0 || !S_ISDIR(st.st_mode)) ok = false; }
+            seg = next;
+        }
+        struct stat ts;
+        if (ok && lstat(target, &ts) == 0) ok = inst_same(target, it->hex);   // 잠근 뒤 나타난 파일 — 같은 내용만 받는다
+        else if (ok) {
+            ok = inst_put(target, it->buf, it->len);
+            if (ok && g_nmade < INST_MADE) { low_bfmt(g_made[g_nmade], sizeof g_made[0], "{}", proven_arg_cstr(target)); g_made_dir[g_nmade++] = false; }
+        }
+        if (!ok) {
+            low_fpf(low_stderr(), "lowentc install: E-INSTALL-WRITE: cannot write {} ({}) — this call's files were removed; files that were "
+                    "already there are untouched\n", proven_arg_cstr(target), proven_arg_cstr(errno ? strerror(errno) : "different content appeared"));
+            inst_rollback(); goto done;
+        }
+    }
+    {
+        int nnew = 0, nshare = 0;
+        for (int i = 0; i < g_ninst; i++) { if (g_inst[i].shared) nshare++; else nnew++; }
+        for (int i = 1; i < g_ninst; i++)
+            low_pf("installed dep {} → {}/{}{}\n", proven_arg_cstr(g_inst[i].mod[0] ? g_inst[i].mod : g_inst[i].rel), proven_arg_cstr(droot),
+                   proven_arg_cstr(g_inst[i].rel), proven_arg_cstr(g_inst[i].shared ? " (already there, same content)" : ""));
+        low_pf("installed {} → {}/{} ({:.12}…) — {} file(s) written, {} already there\n", proven_arg_cstr(mod), proven_arg_cstr(droot),
+               proven_arg_cstr(g_inst[0].rel), proven_arg_cstr(g_inst[0].hex), PROVEN_ARG((int)nnew), PROVEN_ARG((int)nshare));
+    }
+    rc = 0;
+done:
+    flock(lfd, LOCK_UN);
+    close(lfd);
+    inst_free();
+    return rc;
+}
+
+// `lowentc add <name> <source> [--hash <BLAKE3>]` — 의존을 매니페스트에 **해시 핀과 함께** 적는다.
+//   적는 순간이 곧 고정하는 순간이다: 핀 없는 추가는 "오늘 서버가 준 것"을 믿는 것이다.
+// ★★ RFC-0160 §6 URL 추가 (2026-11-27 · W-20261127-0025) — 주소도 받는다. 전에는 `add webop https://…` 가 주소를 로컬 경로로 열다
+//   실패했고, 사용자는 매니페스트를 손으로 고친 뒤 `fetch` 가 보여 준 지문을 다시 손으로 적었다.
+//   · 처음 보는 지문(TOFU)은 **사람이 확인한다**: 터미널이면 이름 · 주소 · 받은 내용의 지문을 보여 주고 묻는다. 자동화는 미리 확보한
+//     지문을 `--hash` 로 준다. 터미널도 지문도 없으면 **아무것도 받지 않고** 사용법을 말하고 멈춘다(입력을 기다리지 않는다).
+//   · 확인한 **바로 그 바이트**를 내용 주소 캐시에 둔다 — 다시 받지 않는다(두 번째 다운로드는 다른 바이트일 수 있다).
+//   · 받은 파일의 `module` 선언이 요청한 이름과 같아야 한다 · local-only 는 받기 전에 거절 · official-only 는 서명을 확인한다(지문을
+//     사람이 받아들여도 서명 정책은 그대로다).
+//   · 매니페스트는 잠근 뒤 **다시 읽어** 합치고, 같은 폴더의 임시 파일을 기존 파서로 읽어 본 뒤 이름을 바꾼다. 같은 이름 · 주소 · 지문의
+//     재시도는 줄 하나로 끝난다. 실패 · 취소면 매니페스트와 잠금 파일의 바이트가 그대로다(`pkg.lock` 은 `lock` 의 일이다).
+static bool add_name_ok(const char *s) {
+    size_t n = strlen(s);
+    if (!n || n >= 64) return false;
+    if (!((s[0] >= 'a' && s[0] <= 'z') || (s[0] >= 'A' && s[0] <= 'Z') || s[0] == '_')) return false;
+    for (size_t i = 1; i < n; i++)
+        if (!((s[i] >= 'a' && s[i] <= 'z') || (s[i] >= 'A' && s[i] <= 'Z') || (s[i] >= '0' && s[i] <= '9') || s[i] == '_')) return false;
+    return true;
+}
+// 매니페스트의 문자열 칸에 그대로 적을 수 있는가 — 출력 가능한 ASCII 이고 `"` · `\` · 공백이 없다. 칸은 255 바이트다.
+static bool add_source_ok(const char *s) {
+    size_t n = strlen(s);
+    if (!n || n >= 256) return false;
+    for (size_t i = 0; i < n; i++) { unsigned char c = (unsigned char)s[i]; if (c <= 0x20 || c >= 0x7f || c == '"' || c == '\\') return false; }
+    return true;
+}
+// 로컬 경로는 전과 같이 넓게 받는다(공백 · UTF-8) — 매니페스트의 문자열 칸이 담지 못하는 `"` · `\` · 제어 문자만 거절한다.
+static bool add_path_ok(const char *s) {
+    size_t n = strlen(s);
+    if (!n || n >= 256) return false;
+    for (size_t i = 0; i < n; i++) { unsigned char c = (unsigned char)s[i]; if (c < 0x20 || c == 0x7f || c == '"' || c == '\\') return false; }
+    return true;
+}
+static bool add_hex_ok(char *h) {
+    if (strlen(h) != 64) return false;
+    for (int i = 0; i < 64; i++) {
+        char c = h[i];
+        if (c >= 'A' && c <= 'F') h[i] = (char)(c - 'A' + 'a');
+        else if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) return false;
+    }
+    return true;
+}
+static void add_usage(void) {
+    low_fpf(low_stderr(), "usage: lowentc add <name> <path>                     a local file, pinned by its content hash\n"
+                          "       lowentc add <name> <URL>                      on a terminal: shows the content hash and asks before recording it\n"
+                          "       lowentc add <name> <URL> --hash <BLAKE3>      for scripts: the hash you already have; the download must match it\n");
+}
+
+// 잠근 매니페스트에 줄 하나를 더한다. 0 = 적었다 · 3 = 같은 줄이 이미 있다 · 1 = 실패(말한 뒤).
+static int add_write(const char *pkgpath, const char *pkgdir, const char *name, const char *source, const char *hex) {
+    int dfd = open(pkgdir, O_RDONLY | O_DIRECTORY);
+    if (dfd < 0 || flock(dfd, LOCK_EX) != 0) {
+        low_fpf(low_stderr(), "lowentc add: cannot lock {} — nothing was changed\n", proven_arg_cstr(pkgdir));
+        if (dfd >= 0) close(dfd);
         return 1;
     }
-    low_free(b);
-    for (int d = 0; d < nd; d++) {
-        if (!dpp[d][0] || dpp[d][0] == '/' || strstr(dpp[d], "://")) continue;
-        char from[736], toc[736];
-        low_bfmt(from, sizeof from, "{}/{}", proven_arg_cstr(sdir), proven_arg_cstr(dpp[d]));
-        low_bfmt(toc, sizeof toc, "{}/{}", proven_arg_cstr(dest), proven_arg_cstr(dpp[d]));
-        if (strchr(dpp[d], '/')) continue;   // 하위 dir 의존은 아직 — 정직하게 알린다
-        if (copy_file(from, toc)) low_pf("installed dep {} → {}\n", proven_arg_cstr(dn[d]), proven_arg_cstr(toc));
-        else low_fpf(low_stderr(), "lowentc install: WARNING — could not copy dependency {} ({}); the installed module will not resolve it\n", proven_arg_cstr(dn[d]), proven_arg_cstr(from));
+    int rc = 1;
+    proven_allocator_t heap = lw_heap();
+    char perr[512], tmp[700];
+    tmp[0] = 0; perr[0] = 0;
+    // 잠근 뒤 **다시 읽는다** — 그 사이 다른 `add` 가 적은 줄을 잃지 않는다
+    low_pkg_t cur = { 0 };
+    low_bfmt(cur.path, sizeof cur.path, "{}", proven_arg_cstr(pkgpath));
+    low_bfmt(cur.dir, sizeof cur.dir, "{}", proven_arg_cstr(pkgdir));
+    cur.found = true;
+    proven_byte_t *ob = NULL; proven_size_t on = 0;
+    struct stat pst;
+    if (!low_pkg_load(heap, &cur, perr) || !read_file(pkgpath, &ob, &on) || stat(pkgpath, &pst) != 0) {
+        low_fpf(low_stderr(), "lowentc add: cannot read {} again under the lock{}{} — nothing was changed\n", proven_arg_cstr(pkgpath),
+                proven_arg_cstr(perr[0] ? ": " : ""), proven_arg_cstr(perr[0] ? perr : ""));
+        goto out;
     }
+    const low_pkg_dep_t *ex = low_pkg_dep_find(&cur, name);
+    if (ex) {
+        if (strcmp(ex->source, source) == 0 && strcmp(ex->hash, hex) == 0) { rc = 3; goto out; }
+        low_fpf(low_stderr(), "lowentc add: E-PKG-DUP: `{}` is already declared in {} (line {}: from \"{}\"{}{}{}) — a second declaration "
+                "for one name means every reader must pick. Nothing was changed; edit the existing line on purpose\n",
+                proven_arg_cstr(name), proven_arg_cstr(pkgpath), PROVEN_ARG((unsigned)ex->line), proven_arg_cstr(ex->source),
+                proven_arg_cstr(ex->hash[0] ? " hash \"" : ""), proven_arg_cstr(ex->hash), proven_arg_cstr(ex->hash[0] ? "\"" : ""));
+        goto out;
+    }
+    if (cur.ndeps >= (int)(sizeof cur.deps / sizeof cur.deps[0])) {
+        low_fpf(low_stderr(), "lowentc add: E-DEP-LIMIT: {} already declares {} dependencies, which is all a manifest holds — nothing was changed\n",
+                proven_arg_cstr(pkgpath), PROVEN_ARG((int)cur.ndeps));
+        goto out;
+    }
+    low_bfmt(tmp, sizeof tmp, "{}/.pkg.low.add-{}", proven_arg_cstr(pkgdir), PROVEN_ARG((int)getpid()));
+    {
+        int fd = open(tmp, O_WRONLY | O_CREAT | O_EXCL, pst.st_mode & 07777);
+        if (fd < 0) { low_fpf(low_stderr(), "lowentc add: cannot write {} — nothing was changed\n", proven_arg_cstr(tmp)); tmp[0] = 0; goto out; }
+        char line[700];
+        low_bfmt(line, sizeof line, "{}use {} from \"{}\" hash \"{}\" .\n", proven_arg_cstr(on && ob[on - 1] != '\n' ? "\n" : ""),
+                 proven_arg_cstr(name), proven_arg_cstr(source), proven_arg_cstr(hex));
+        bool ok = true;
+        proven_size_t off = 0;
+        while (ok && off < on) { ssize_t w = write(fd, ob + off, on - off); if (w > 0) off += (proven_size_t)w; else if (!(w < 0 && errno == EINTR)) ok = false; }
+        size_t ll = strlen(line), lo = 0;
+        while (ok && lo < ll) { ssize_t w = write(fd, line + lo, ll - lo); if (w > 0) lo += (size_t)w; else if (!(w < 0 && errno == EINTR)) ok = false; }
+        if (ok && fsync(fd) != 0) ok = false;
+        if (close(fd) != 0) ok = false;
+        if (!ok) { low_fpf(low_stderr(), "lowentc add: cannot write {} — nothing was changed\n", proven_arg_cstr(tmp)); goto out; }
+    }
+    {   // 기존 파서로 읽어 본다 — 그 줄이 그 뜻으로 읽혀야 바꿔 놓는다
+        low_pkg_t chk = { 0 };
+        low_bfmt(chk.path, sizeof chk.path, "{}", proven_arg_cstr(tmp));
+        low_bfmt(chk.dir, sizeof chk.dir, "{}", proven_arg_cstr(pkgdir));
+        chk.found = true;
+        const low_pkg_dep_t *nd = NULL;
+        perr[0] = 0;
+        if (!low_pkg_load(heap, &chk, perr) || !(nd = low_pkg_dep_find(&chk, name)) || strcmp(nd->source, source) != 0 || strcmp(nd->hash, hex) != 0 ||
+            chk.ndeps != cur.ndeps + 1) {
+            low_fpf(low_stderr(), "lowentc add: the new manifest did not read back as written{}{} — nothing was changed\n",
+                    proven_arg_cstr(perr[0] ? ": " : ""), proven_arg_cstr(perr[0] ? perr : ""));
+            goto out;
+        }
+    }
+    if (rename(tmp, pkgpath) != 0) { low_fpf(low_stderr(), "lowentc add: cannot replace {} — nothing was changed\n", proven_arg_cstr(pkgpath)); goto out; }
+    tmp[0] = 0;
+    rc = 0;
+out:
+    if (tmp[0]) remove(tmp);
+    low_free(ob);
+    flock(dfd, LOCK_UN);
+    close(dfd);
+    return rc;
+}
+
+static int cmd_add(int nargs, char **args) {
+    const char *name = NULL, *source = NULL;
+    char hexarg[80] = { 0 };
+    for (int i = 0; i < nargs; i++) {
+        if (strcmp(args[i], "--hash") == 0) {
+            if (i + 1 >= nargs) { add_usage(); return 2; }
+            low_bfmt(hexarg, sizeof hexarg, "{}", proven_arg_cstr(args[++i]));
+        }
+        else if (!name) name = args[i];
+        else if (!source) source = args[i];
+        else { add_usage(); return 2; }
+    }
+    if (!name || !source) { add_usage(); return 2; }
+    if (!add_name_ok(name)) {
+        low_fpf(low_stderr(), "lowentc add: `{}` is not a module name (a letter or `_`, then letters, digits or `_`; at most 63) — nothing was changed\n", proven_arg_cstr(name));
+        return 2;
+    }
+    if (is_url(source) ? !add_source_ok(source) : !add_path_ok(source)) {
+        low_fpf(low_stderr(), "lowentc add: the source cannot be written into the manifest as it is — {}. Nothing was changed\n",
+                proven_arg_cstr(is_url(source) ? "a URL must be printable ASCII without spaces, `\"` or `\\`, at most 255 bytes"
+                                               : "a path must not hold `\"`, `\\` or control characters, and is at most 255 bytes"));
+        return 2;
+    }
+    if (hexarg[0] && !add_hex_ok(hexarg)) {
+        low_fpf(low_stderr(), "lowentc add: `--hash` takes the 64 hex digits of a BLAKE3 hash (what `lowentc verify <file>` shows) — nothing was changed\n");
+        return 2;
+    }
+    bool url = is_url(source);
+    if (url && strncmp(source, "file://", 7) != 0 && strncmp(source, "http://", 7) != 0 && strncmp(source, "https://", 8) != 0) { add_usage(); return 2; }
+    low_pkg_t pkg = { 0 };
+    if (!low_pkg_find(".", &pkg)) {
+        low_fpf(low_stderr(), "lowentc add: no pkg.low found — a dependency needs a manifest to live in. "
+                        "Create pkg.low first (package name/version)\n");
+        return 2;
+    }
+    proven_allocator_t heap = lw_heap();
+    char perr[512];
+    if (!low_pkg_load(heap, &pkg, perr)) { low_fpf(low_stderr(), "{}\n", proven_arg_cstr(perr)); return 1; }
+    char hex[65] = { 0 };
+    if (!url) {
+        char sp[600];
+        if (source[0] == '/') low_bfmt(sp, sizeof sp, "{}", proven_arg_cstr(source));
+        else low_bfmt(sp, sizeof sp, "{}/{}", proven_arg_cstr(pkg.dir), proven_arg_cstr(source));
+        proven_byte_t *db = NULL; proven_size_t dl = 0;
+        if (!read_file(sp, &db, &dl)) {
+            low_fpf(low_stderr(), "lowentc add: cannot read {} — a dependency the tool cannot see is a "
+                            "dependency nobody checked (E-DEP-MISSING)\n", proven_arg_cstr(sp));
+            return 1;
+        }
+        hash_hex(db, dl, hex);
+        low_free(db);
+        if (hexarg[0] && strcmp(hexarg, hex) != 0) {
+            low_fpf(low_stderr(), "lowentc add: E-DEP-HASH: {} hashes to {}, not the `--hash` given ({}) — nothing was changed\n",
+                    proven_arg_cstr(sp), proven_arg_cstr(hex), proven_arg_cstr(hexarg));
+            return 1;
+        }
+    } else {
+        // 같은 이름 · 주소 · 지문이 이미 있으면 받을 것도 없다
+        const low_pkg_dep_t *ex = low_pkg_dep_find(&pkg, name);
+        if (ex && strcmp(ex->source, source) == 0 && ex->hash[0] && (!hexarg[0] || strcmp(ex->hash, hexarg) == 0)) {
+            low_pf("{} is already declared from \"{}\" (pinned {:.12}…) in {} — nothing to add\n", proven_arg_cstr(name), proven_arg_cstr(source),
+                   proven_arg_cstr(ex->hash), proven_arg_cstr(pkg.path));
+            return 0;
+        }
+        if (ex) {
+            low_fpf(low_stderr(), "lowentc add: E-PKG-DUP: `{}` is already declared in {} (line {}: from \"{}\") — nothing was downloaded or "
+                    "changed; edit the existing line on purpose\n", proven_arg_cstr(name), proven_arg_cstr(pkg.path), PROVEN_ARG((unsigned)ex->line), proven_arg_cstr(ex->source));
+            return 1;
+        }
+        if (strcmp(g_cfg.policy, "local-only") == 0) {
+            low_fpf(low_stderr(), "lowentc add: E-POLICY-LOCAL: `{}` is a URL and the policy is local-only (lowpm.local / ~/.lowent/config) — "
+                    "nothing was downloaded. Vendor the file and add its path, or change the policy on purpose\n", proven_arg_cstr(source));
+            return 1;
+        }
+        bool tty = isatty(0) != 0;
+        if (!hexarg[0] && !tty) {
+            low_fpf(low_stderr(), "lowentc add: a URL dependency is recorded with its content hash, and the FIRST hash is a person's "
+                    "decision — there is no terminal to ask on, so nothing was downloaded. Give the hash you already have:\n");
+            add_usage();
+            return 2;
+        }
+        char cp[600];
+        if (hexarg[0]) {
+            if (!cache_fetch(name, source, hexarg, cp)) return 1;   // 미러 · 원본 · 해시 대조 — 맞는 바이트만 캐시에 든다
+            low_bfmt(hex, sizeof hex, "{}", proven_arg_cstr(hexarg));
+        } else {
+            const char *home = getenv("HOME");
+            if (!home) { low_fpf(low_stderr(), "E-PKG-FETCH: no HOME — nowhere to keep the content cache\n"); return 1; }
+            char base[600], tmp[700];
+            low_bfmt(base, sizeof base, "{}/.lowent", proven_arg_cstr(home)); mkdir(base, 0755);
+            low_bfmt(base, sizeof base, "{}/.lowent/cache", proven_arg_cstr(home)); mkdir(base, 0755);
+            low_bfmt(tmp, sizeof tmp, "{}/.add.{}", proven_arg_cstr(base), PROVEN_ARG((int)getpid()));
+            if (!fetch_url(source, tmp)) {
+                remove(tmp);
+                low_fpf(low_stderr(), "E-PKG-FETCH: cannot download `{}` from {} (curl/wget failed) — nothing was changed\n", proven_arg_cstr(name), proven_arg_cstr(source));
+                return 1;
+            }
+            proven_byte_t *b = NULL; proven_size_t n = 0;
+            if (!read_file(tmp, &b, &n)) { remove(tmp); low_fpf(low_stderr(), "E-PKG-FETCH: downloaded but cannot read {}\n", proven_arg_cstr(tmp)); return 1; }
+            hash_hex(b, n, hex);
+            char mn[64] = { 0 };
+            bool hasmod = mod_name_of(b, n, mn, sizeof mn);
+            low_free(b);
+            if (!hasmod || strcmp(mn, name) != 0) {
+                remove(tmp);
+                low_fpf(low_stderr(), "lowentc add: E-ADD-NAME: {} declares {}{}{} — you asked for `{}`. Nothing was recorded\n", proven_arg_cstr(source),
+                        proven_arg_cstr(hasmod ? "`module " : "no module"), proven_arg_cstr(hasmod ? mn : ""), proven_arg_cstr(hasmod ? "`" : ""), proven_arg_cstr(name));
+                return 1;
+            }
+            low_fpf(low_stderr(), "  name    {}\n  source  {}\n  BLAKE3  {}\n"
+                    "  This is the first time this content is pinned: nothing yet says who published it — only that these are the bytes the\n"
+                    "  server sent now. Record it in {}? [y/N] ", proven_arg_cstr(name), proven_arg_cstr(source), proven_arg_cstr(hex), proven_arg_cstr(pkg.path));
+            low_flush_std();
+            char ans[16]; size_t an = 0; char c;
+            while (low_stdin_read(&c, 1) == 1 && c != '\n') if (an + 1 < sizeof ans) ans[an++] = c;
+            ans[an] = 0;
+            if (!(strcmp(ans, "y") == 0 || strcmp(ans, "Y") == 0 || strcmp(ans, "yes") == 0)) {
+                remove(tmp);
+                low_fpf(low_stderr(), "\nlowentc add: not recorded — {} and the lock file are unchanged\n", proven_arg_cstr(pkg.path));
+                return 1;
+            }
+            low_bfmt(cp, sizeof cp, "{}/{}.low", proven_arg_cstr(base), proven_arg_cstr(hex));
+            if (file_exists(cp)) remove(tmp);   // 내용 주소 — 같은 이름이면 같은 바이트다
+            else if (rename(tmp, cp) != 0) { remove(tmp); low_fpf(low_stderr(), "E-PKG-FETCH: cannot place {} into the cache\n", proven_arg_cstr(name)); return 1; }
+        }
+        // 받은 (확인한) 바이트의 모듈 이름 — `--hash` 길도 같은 질문을 한다
+        proven_byte_t *cb = NULL; proven_size_t cn = 0; char mn[64] = { 0 };
+        if (!read_file(cp, &cb, &cn)) { low_fpf(low_stderr(), "E-PKG-FETCH: cannot read {}\n", proven_arg_cstr(cp)); return 1; }
+        bool hasmod = mod_name_of(cb, cn, mn, sizeof mn);
+        low_free(cb);
+        if (!hasmod || strcmp(mn, name) != 0) {
+            low_fpf(low_stderr(), "lowentc add: E-ADD-NAME: {} declares {}{}{} — you asked for `{}`. Nothing was recorded\n", proven_arg_cstr(source),
+                    proven_arg_cstr(hasmod ? "`module " : "no module"), proven_arg_cstr(hasmod ? mn : ""), proven_arg_cstr(hasmod ? "`" : ""), proven_arg_cstr(name));
+            return 1;
+        }
+        if (!policy_sig_ok(name, source, cp)) return 1;
+    }
+    int w = add_write(pkg.path, pkg.dir, name, source, hex);
+    if (w == 3) { low_pf("{} is already declared from \"{}\" (pinned {:.12}…) in {} — nothing to add\n", proven_arg_cstr(name), proven_arg_cstr(source), proven_arg_cstr(hex), proven_arg_cstr(pkg.path)); return 0; }
+    if (w != 0) return 1;
+    low_pf("added {} from \"{}\" (pinned {:.12}…) to {}\n", proven_arg_cstr(name), proven_arg_cstr(source), proven_arg_cstr(hex), proven_arg_cstr(pkg.path));
     return 0;
 }
 
@@ -1168,8 +1836,10 @@ static void print_usage(const char *argv0) {
         "    build [entry] [--target T --config F] [--pad-branches]  네이티브 실행파일 (emit-c → cc, out/<이름>;\n"
         "                           증분 = 방출된 C 의 내용해시 캐시 ~/.lowent/cache/build/;\n"
         "                           --pad-branches = x86 에서 분기를 32 바이트 경계에서 비켜 놓는다 — Skylake 계열 Intel 의 JCC 정오표)\n"
-        "    add <name> <source>    의존을 pkg.low 에 **해시 핀과 함께** 적는다\n"
-        "    install <f> [--user|--system|--prefix D]  라이브러리 설치 (기본 ~/.lowent/lib, 전이 의존 포함)\n"
+        "    add <name> <source> [--hash H]  의존을 pkg.low 에 **해시 핀과 함께** 적는다 — <source> 는 경로나 URL.\n"
+        "                           URL 은 터미널이면 받은 내용의 지문을 보여 주고 묻는다; 스크립트는 --hash 로 미리 준다\n"
+        "    install <f> [--user|--system|--prefix D]  라이브러리 설치 (기본 ~/.lowent/lib) — 상대 경로 · 형제 · include_text 를\n"
+        "                           끝까지 따라가 하위 폴더째 옮긴다; 소비자가 못 풀 의존 · 다른 내용의 기존 파일은 쓰기 전에 거절\n"
         "    fetch                  매니페스트의 URL 의존을 받아 캐시에 넣는다 (핀 검증; 무핀=해시 제시)\n"
         "    key new N | key list   ed25519 키 (비밀=~/.lowent/keys/private, 신뢰 루트=keys/official)\n"
         "    sign F [--key N]       분리 서명 F.sig 를 만든다 (발행자 = 진본의 답, RFC-0032 D7)\n"
@@ -1211,7 +1881,7 @@ static void print_usage(const char *argv0) {
         "    pkg.low / pkg.lock   첫 파일의 dir 에서 **위로** 걸어 찾는다(≤8단; --pkg 로 명시)\n"
         "    ./lowpm.local        프로젝트 설정 — 사용자 config 를 이긴다 (우선순위: CLI > 프로젝트 > 사용자 > 전역)\n"
         "    설정 키              policy any|local-only|official-only · mirror <base>  (비밀·미러=소스 밖, RFC-0032 D5)\n"
-        "    외부 도구 폴백       cc(build) · curl→wget(fetch) · openssl(key/sign/verify) — 없으면 없다고 말한다\n"
+        "    외부 도구 폴백       cc(build) · curl→wget(fetch · add) · openssl(key/sign/verify) — 없으면 없다고 말한다\n"
         "\n  여러 .low 를 주면 **하나의 컴파일 단위**로 잇는다. `use <n> from \"<path>\" .` 는\n"
         "  스스로 링크된다 — 경로는 **그것을 선언한 파일 기준**이다.\n",
         proven_arg_cstr(argv0));
@@ -1390,7 +2060,7 @@ int main(int argc, char **argv) {
         const char *fl = sub_flag(argv[1]);
         if (fl) argv[1] = (char *)fl;
         else if (strcmp(argv[1], "build") == 0) return cmd_build(argc - 2, argv + 2);
-        else if (strcmp(argv[1], "add") == 0) return cmd_add(argc >= 3 ? argv[2] : NULL, argc >= 4 ? argv[3] : NULL);
+        else if (strcmp(argv[1], "add") == 0) { cfg_load(); return cmd_add(argc - 2, argv + 2); }   // ★ RFC-0160 — URL 은 정책 · 미러를 읽는다
         else if (strcmp(argv[1], "install") == 0) return cmd_install(argc - 2, argv + 2);
         else if (strcmp(argv[1], "fetch") == 0) { cfg_load(); return cmd_fetch(); }
         else if (strcmp(argv[1], "key") == 0) return cmd_key(argc - 2, argv + 2);
@@ -1816,91 +2486,38 @@ int main(int argc, char **argv) {
                 //   열일곱 번째 `use` 가 이 표 끝을 넘어 옆 전역(`loaded`)을 덮었다(ASan global-buffer-overflow, 골든 안에서).
                 static char resolved[MAX_DEPS_PER_FILE][512];
                 const char *base = paths[fi];
-                const char *slash = strrchr(base, '/');
                 const low_pkg_dep_t *mdep = NULL;   // 매니페스트 선언 의존으로 해소됐는가 (해시 핀)
                 bool via_std = std_origin[fi];      // 예약(std) 해소 — 신뢰 뿌리는 설치다, 프로젝트 락이 아니다
-                if (dpaths[d][0] == 0) {
-                    // ── from-생략 3계층 해소 (RFC-0011 §6.3): 예약 std → 매니페스트 → 형제 dir ──
-                    std_scan(argv[0]);
-                    const char *sp = std_find(dnames[d]);
-                    char sib[600];
-                    if (slash) low_bfmt(sib, sizeof sib, "{}{}.low", low_sv(base, (int)(slash - base + 1)), proven_arg_cstr(dnames[d]));
-                    else        low_bfmt(sib, sizeof sib, "{}.low", proven_arg_cstr(dnames[d]));
-                    bool sib_ok = low_file_readable(sib);   // ★ W-20261113-1122 — proven 의 파일 읽기
-                    mdep = pkg.found ? low_pkg_dep_find(&pkg, dnames[d]) : NULL;
-                    if (sp) {
-                        // ★★★ **자기 자신은 가림이 아니다** (2026-07-26).
-                        //   std 모듈이 **다른 std 모듈**을 부르면(예: `growvec` 이 `gvec` 을),
-                        //   그 "형제 파일" 은 곧 **std 파일 자신**이다. 그것을 가림으로 읽어
-                        //   E-NAME-RESERVED 를 내면 **표준 라이브러리끼리 서로 못 부른다** —
-                        //   *네 프로그램이 틀렸다* 고 말하지만 틀린 것은 도구다(교훈 5).
-                        //   ⇒ 실경로가 같으면 조용히 통과시킨다. 다르면 규칙은 그대로 문다.
-                        if (sib_ok) {
-                            char r1[PATH_MAX], r2[PATH_MAX];
-                            if (realpath(sib, r1) && realpath(sp, r2) && strcmp(r1, r2) == 0)
-                                sib_ok = false;
-                        }
-                        if (mdep || sib_ok) {
-                            low_fpf(low_stderr(), "E-NAME-RESERVED: `use {} .` — this is a RESERVED (standard) "
-                                    "module name, and {} also provides it. A local file must not shadow a "
-                                    "standard module: rename it, or import it explicitly with "
-                                    "`use {} from \"<path>\" .` so the choice is written down (RFC-0011 §6.3)\n",
-                                    proven_arg_cstr(dnames[d]), proven_arg_cstr(mdep ? "the manifest" : "a sibling file"), proven_arg_cstr(dnames[d]));
+                const low_pkg_dep_t *cdep = NULL; const std_mod_t *cstd = NULL;
+                use_kind_t uk = use_classify(argv[0], base, dnames[d], dpaths[d], pkg.found ? &pkg : NULL, resolved[d], &cdep, &cstd, false);
+                if (uk == USE_ERR) return 1;
+                if (uk == USE_NONE) continue;   // 미해소 — 단위 안에 있거나(W 불요) 밖이면 W-USE-EXTERNAL 이 말한다
+                if (uk == USE_STD) via_std = true;
+                if (uk == USE_MANIFEST) {
+                    mdep = cdep;
+                    if (is_url(mdep->source)) {
+                        // ★ 정책(2D · RFC-0033 D8): local-only 는 네트워크 자체를 거절한다.
+                        if (strcmp(g_cfg.policy, "local-only") == 0) {
+                            low_fpf(low_stderr(), "E-POLICY-LOCAL: dependency `{}` points at a URL ({}) but "
+                                    "the policy is local-only (lowpm.local / ~/.lowent/config) — vendor "
+                                    "the file, or change the policy on purpose\n", proven_arg_cstr(dnames[d]), proven_arg_cstr(mdep->source));
                             return 1;
                         }
-                        low_bfmt(resolved[d], sizeof resolved[d], "{}", proven_arg_cstr(sp));
-                        via_std = true;
-                    } else if (mdep) {
-                        if (is_url(mdep->source)) {
-                            // ★ 정책(2D · RFC-0033 D8): local-only 는 네트워크 자체를 거절한다.
-                            if (strcmp(g_cfg.policy, "local-only") == 0) {
-                                low_fpf(low_stderr(), "E-POLICY-LOCAL: dependency `{}` points at a URL ({}) but "
-                                        "the policy is local-only (lowpm.local / ~/.lowent/config) — vendor "
-                                        "the file, or change the policy on purpose\n", proven_arg_cstr(dnames[d]), proven_arg_cstr(mdep->source));
-                                return 1;
-                            }
-                            // ★ URL 은 **핀 없이는 안 받는다** — 핀 없는 다운로드는 "오늘 서버가
-                            //   준 것"을 믿는 것이다. 핀이 있으면 content-addressed 캐시가 산다.
-                            if (!mdep->hash[0]) {
-                                low_fpf(low_stderr(), "E-DEP-UNPINNED-URL: dependency `{}` points at a URL ({}) "
-                                        "with NO hash pin — that would mean trusting whatever the server "
-                                        "sends today. Run `lowentc fetch` to see the content hash, then "
-                                        "pin it: `use {} from \"{}\" hash \"<hex>\" .` (RFC-0032 D4)\n",
-                                        proven_arg_cstr(dnames[d]), proven_arg_cstr(mdep->source), proven_arg_cstr(dnames[d]), proven_arg_cstr(mdep->source));
-                                return 1;
-                            }
-                            char cp[600];
-                            if (!cache_fetch(dnames[d], mdep->source, mdep->hash, cp)) return 1;
-                            // ★ official-only (2C ②층): 해시(무결)로는 부족하다 — **발행자의 서명**이
-                            //   신뢰 키로 검증돼야 한다. 서명은 <url>.sig 의 분리 서명이다.
-                            if (strcmp(g_cfg.policy, "official-only") == 0) {
-                                char su[900], st[736], kn[128];
-                                low_bfmt(su, sizeof su, "{}.sig", proven_arg_cstr(mdep->source));
-                                low_bfmt(st, sizeof st, "{}.sig", proven_arg_cstr(cp));
-                                if (!file_exists(st) && !fetch_url(su, st)) remove(st);
-                                if (!file_exists(st) || !sig_verify_trusted(cp, st, kn)) {
-                                    low_fpf(low_stderr(), "E-POLICY-UNSIGNED: policy is official-only, and `{}` "
-                                            "has no signature a TRUSTED key verifies ({}.sig). The hash pin "
-                                            "proves the bytes are unchanged; it cannot prove WHO published "
-                                            "them — that is the signature's question (RFC-0032 D7)\n",
-                                            proven_arg_cstr(dnames[d]), proven_arg_cstr(mdep->source));
-                                    return 1;
-                                }
-                            }
-                            low_bfmt(resolved[d], sizeof resolved[d], "{}", proven_arg_cstr(cp));
+                        // ★ URL 은 **핀 없이는 안 받는다** — 핀 없는 다운로드는 "오늘 서버가
+                        //   준 것"을 믿는 것이다. 핀이 있으면 content-addressed 캐시가 산다.
+                        if (!mdep->hash[0]) {
+                            low_fpf(low_stderr(), "E-DEP-UNPINNED-URL: dependency `{}` points at a URL ({}) "
+                                    "with NO hash pin — that would mean trusting whatever the server "
+                                    "sends today. Run `lowentc fetch` to see the content hash, then "
+                                    "pin it: `use {} from \"{}\" hash \"<hex>\" .` (RFC-0032 D4)\n",
+                                    proven_arg_cstr(dnames[d]), proven_arg_cstr(mdep->source), proven_arg_cstr(dnames[d]), proven_arg_cstr(mdep->source));
+                            return 1;
                         }
-                        else if (mdep->source[0] == '/') low_bfmt(resolved[d], sizeof resolved[d], "{}", proven_arg_cstr(mdep->source));
-                        else low_bfmt(resolved[d], sizeof resolved[d], "{}/{}", proven_arg_cstr(pkg.dir), proven_arg_cstr(mdep->source));
-                    } else if (sib_ok) {
-                        low_bfmt(resolved[d], sizeof resolved[d], "{}", proven_arg_cstr(sib));
-                    } else {
-                        continue;   // 미해소 — 단위 안에 있거나(W 불요) 밖이면 W-USE-EXTERNAL 이 말한다
+                        char cp[600];
+                        if (!cache_fetch(dnames[d], mdep->source, mdep->hash, cp)) return 1;
+                        if (!policy_sig_ok(dnames[d], mdep->source, cp)) return 1;
+                        low_bfmt(resolved[d], sizeof resolved[d], "{}", proven_arg_cstr(cp));
                     }
-                } else if (dpaths[d][0] != '/' && slash) {
-                    int bl = (int)(slash - base + 1);
-                    low_bfmt(resolved[d], sizeof resolved[d], "{}{}", low_sv(base, bl), proven_arg_cstr(dpaths[d]));
-                } else {
-                    low_bfmt(resolved[d], sizeof resolved[d], "{}", proven_arg_cstr(dpaths[d]));
                 }
                 char *dp = resolved[d];
                 bool dup = false;

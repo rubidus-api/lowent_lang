@@ -37,7 +37,9 @@ If anything in the book leaves you wondering, please ask on the [**Q&A board**](
 
 - [4 Numbers — fixed-width integers and floating point](ch04.md)
 - [5 Ops — fn and proc](ch05.md)
-- [6 Locals — let and var](ch06.md)
+
+[6 Locals — let and var](ch06.md)
+
 - [7 Flow — branches, loops and leaving early](ch07.md)
 - [8 Expressions — prefix notation and the expr island](ch08.md)
 
@@ -45,7 +47,9 @@ If anything in the book leaves you wondering, please ask on the [**Q&A board**](
 
 - [9 Sequences — arrays and slices](ch09.md)
 - [10 Aggregates — struct and enum](ch10.md)
-- [11 Types that hold answers — option and result](ch11.md)
+
+[11 Types that hold answers — option and result](ch11.md)
+
 - [12 Borrowing — ref and mut_ref](ch12.md)
 - [13 Named types — type, newtype, range, cast](ch13.md)
 
@@ -86,8 +90,10 @@ If anything in the book leaves you wondering, please ask on the [**Q&A board**](
 
 - [32 A map of the standard library](ch32.md)
 - [33 Text and encodings — strings, fmt, utf8, codec, hash](ch33.md)
+
 - [34 Containers and sorting — sortlib, sortgen, hashmap, vecgen, spsc](ch34.md)
 - [35 Storage and handles — pool, shard, budget, wire](ch35.md)
+
 - [36 Input/output, networking, time, randomness, cryptography](ch36.md)
 - [37 The terminal — term and tty](ch37.md)
 
@@ -95,6 +101,7 @@ If anything in the book leaves you wondering, please ask on the [**Q&A board**](
 
 - [38 Why prove](ch38.md)
 - [39 The mathematical toolkit](ch39.md)
+
 - [40 Proofs about numbers — widening, narrowing, division](ch40.md)
 - [41 Proofs about bounds — intervals, relations, row-major addresses](ch41.md)
 - [42 Proofs about ownership and borrowing](ch42.md)
@@ -104,6 +111,7 @@ If anything in the book leaves you wondering, please ask on the [**Q&A board**](
 - [46 Proofs about weak memory — with the default, you may think sequentially](ch46.md)
 - [47 Proofs about locks — where heavy tools are really needed](ch47.md)
 - [48 Proofs about syntax — the text decides the tree](ch48.md)
+
 - [49 Proofs about hashes — calling things by content, not name](ch49.md)
 - [50 What is not proven](ch50.md)
 
@@ -111,6 +119,7 @@ If anything in the book leaves you wondering, please ask on the [**Q&A board**](
 
 - [Appendix A — Words, core ops and builtin ops](sec54.md)
 - [Appendix B — Diagnostics index](sec55.md)
+
 - [Appendix C — Common mistakes and how to fix them](sec56.md)
 - [Appendix D — Grammar summary](sec57.md)
 - [Appendix E — Standard library modules](sec58.md)
@@ -187,6 +196,7 @@ If anything in the book leaves you wondering, please ask on the [**Q&A board**](
 - [reactor — non-blocking reads and writes](sec129.md)
 - [net — sockets (TCP loopback · in-process pairs)](sec130.md)
 - [clock — time and deadlines](sec131.md)
+
 - [trust — finding a trusted root in the trust store](sec132.md)
 - [Index](sec133.md)
 

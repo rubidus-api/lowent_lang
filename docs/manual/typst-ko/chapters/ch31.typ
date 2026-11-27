@@ -110,6 +110,58 @@ hello from a package
 
 한 층이 초록이어도 다른 층은 따로 본다. TLS 가 성공했다는 것은 서버가 맞다는 뜻이지 받은 바이트가 맞다는 뜻이 아니다.
 
+== 라이브러리를 설치하고, 주소로 의존을 더한다
+
+`lowentc install <파일> [--user | --system | --prefix <폴더>]` 는 라이브러리를 다른 프로젝트가 쓸 수 있는 자리에 둔다(기본은
+`~/.lowent/lib`). 설치가 끝났다는 것은 *원본 폴더가 없어도 소비자의 빌드가 돈다* 는 뜻이다. 그래서 설치기는 빌드와 같은 규칙으로
+의존을 끝까지 따라가 무엇을 어디에 둘지 먼저 다 정한 뒤에 쓴다.
+
+- 옮기는 것: `from "<상대 경로>"` 로 부른 파일, 경로 없이 부른 형제 파일(`use d .` 와 같은 폴더의 `d.low`), `include_text` 가 읽는
+  파일. 하위 폴더의 배치는 그대로 둔다. 여러 모듈이 같은 파일을 부르면 한 번만 둔다.
+- 그대로 참조하는 것: 도구와 함께 온 표준 모듈.
+- 거절하는 것: 원본의 매니페스트(`pkg.low`)가 풀어 주는 의존, URL, 절대 경로, 어디서도 풀리지 않는 이름. 소비자는 그것을 찾을 수
+  없다. 이때는 *아무것도 쓰기 전에* 그 선언과 사슬을 알려 주고 `E-INSTALL-UNSUPPORTED` 로 멈춘다. 패키지 폴더 밖으로 나가는 경로는
+  `E-INSTALL-ESCAPE`, 읽을 수 없는 파일은 `E-DEP-MISSING` 이다.
+
+목적지에 같은 이름의 다른 내용이 이미 있으면 `E-INSTALL-CONFLICT` 로 거절하고 그 파일을 둔다. 다른 패키지의 파일일 수 있기 때문이다.
+같은 내용이면 함께 쓴다. 그래서 같은 설치를 다시 하거나 중간에 멈춘 설치를 다시 하면, 이미 놓인 파일은 다시 쓰지 않는다. 쓰기는
+의존부터 하고, 소비자가 찾는 본체는 마지막에 둔다. 쓰다가 실패하면 그 호출이 새로 놓은 파일만 치운다. 같은 목적지에 두 설치가
+함께 오면 차례로 한다.
+
+```text
+$ lowentc install geom.low
+installed dep vecops → ~/.lowent/lib/sub/vecops.low
+installed geom → ~/.lowent/lib/geom.low (e3f7ccb5c541…) — 2 file(s) written, 0 already there
+
+$ lowentc install geom.low          # 본체를 고친 뒤
+lowentc install: E-INSTALL-CONFLICT: ~/.lowent/lib/geom.low already exists with DIFFERENT content …
+```
+
+새 판으로 바꾸려면 옛 파일을 직접 지운 뒤 다시 설치한다. 설치기는 다른 내용의 파일을 덮어쓰지 않는다. 사용자 스코프의 맨 위에 놓인 파일은
+이름으로 찾힌다. 그래서 `use d .` 로 옆의 `d.low` 를 부르는 꾸러미를 `--user` 로 설치하면, 같은 HOME 에서 원본 폴더를 다시 지을 때 원본의
+`d.low` 가 설치된 `d` 를 가린다며 `E-NAME-RESERVED` 로 멈춘다. 원본에서는 `use d from "d.low" .` 처럼 경로를 적으면 이 충돌이 없다.
+
+`lowentc add <이름> <URL>` 은 주소로 받는 의존을 매니페스트에 한 줄로 더한다. 처음 보는 내용을 믿을지는 사람이 정한다. 터미널에서
+부르면 받은 내용의 BLAKE3 지문을 보여 주고 적을지 묻는다. 스크립트에서는 미리 확보한 지문을 `--hash` 로 준다. 둘 다 없으면
+아무것도 받지 않고 사용법을 보여 준 뒤 멈춘다.
+
+```text
+$ lowentc add webop https://example.org/webop.low
+  name    webop
+  source  https://example.org/webop.low
+  BLAKE3  4c3fe5ac1d41e624f84d13086622e6be5ae1980abd38417fc73c35daa0264466
+  … Record it in pkg.low? [y/N] y
+added webop from "https://example.org/webop.low" (pinned 4c3fe5ac1d41…) to pkg.low
+
+$ lowentc add webop https://example.org/webop.low --hash 4c3fe5ac…0264466   # 스크립트
+```
+
+확인한 바로 그 바이트가 내용 주소 캐시(`~/.lowent/cache`)에 들어가므로, 서버가 꺼져도 `lock`·`run`·`build` 가 돈다. 받은 파일의
+`module` 선언이 요청한 이름과 다르면 `E-ADD-NAME` 이다. 지문이 다르면 `E-DEP-HASH`, 받지 못하면 `E-PKG-FETCH` 이다. 정책이
+`local-only` 이면 받기 전에 거절하고, `official-only` 이면 지문을 받아들여도 믿는 키의 서명이 있어야 한다(`E-POLICY-UNSIGNED`).
+실패하거나 취소하면 `pkg.low` 와 `pkg.lock` 은 한 바이트도 바뀌지 않는다. 같은 이름·주소·지문으로 다시 부르면 줄이 늘지 않고, 같은
+이름의 다른 선언이 있으면 `E-PKG-DUP` 로 알린다. 잠금 파일은 여기서 만들지 않는다. 그것은 `lock` 의 일이다.
+
 == 빌드마다 다른 프로그램 --- `build option` 과 `config`
 
 #demo("examples/ch31/knobs.low")
@@ -281,6 +333,7 @@ why-slow: 0 / 1 op(s) still on the tagged path
   [`package name "greeter" .` · `package version "0.1.0" .`], [`pkg.low` 매니페스트], [여기만은 적은 것을 검사한다 --- 열쇠말은 닫힌 집합],
   [`lowentc run` · `lowentc build`], [프로젝트를 VM 으로 돌린다 · `out/` 에 짓는다], [매니페스트를 걸어 올라가며 찾는다],
   [`lowentc add <이름> <자리>` · `--lock-write` · `--lock`], [의존을 해시와 함께 고정한다], [판 번호가 같아도 바이트가 다르면 다른 의존],
+  [`lowentc install <파일>` · `lowentc add <이름> <URL> [--hash <지문>]`], [라이브러리를 의존째 설치한다 · 주소로 의존을 더한다], [설치본은 원본 없이 돌아야 한다 · 처음 지문은 사람이 정한다],
   [`build option smp bool default true .`], [빌드 손잡이 --- `bool`·`int`·`choice`], [읽히지 않는 손잡이는 `E-OPT-UNUSED`],
   [`config smp .` · `--config small.config`], [손잡이 값을 번역 시점 상수로 읽는다 · 구성 파일], [꺼진 가지도 검사받는다],
   [`test <이름> do expect <조건> . end .` · `--test`], [시험 블록과 단언], [실패는 `E-TEST-FAIL` --- 계약 위반과 다른 진단],

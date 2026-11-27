@@ -759,6 +759,19 @@ for i, (t, _) in enumerate(chapters):
 # 앞부속(머리말·번역 노트)과 뒷부속(부록·찾아보기)을 가른다.
 # 문서 순서에서 첫 번호 장보다 앞에 있으면 앞부속이고, 그것은 부 목록보다
 # *앞*에 놓는다 — 뒷부속 묶음("부록과 찾아보기")에 섞이면 안 된다.
+def toc_section(head, rows, keep=2):
+    """부 하나의 차례 — 제목과 줄들. 줄은 단을 넘어 흐른다. 제목은 첫 `keep` 줄과 함께 다니고 마지막 `keep` 줄은 서로 붙어 있어서,
+    제목만 단 끝에 남거나 한 줄만 새 단을 여는 일이 없다. 2*keep 줄 이하인 부는 나뉘지 않는 한 덩어리다.
+    (2026-11-27 · proven_c_book 요청 — 전엔 부의 목록이 통째로 다음 단으로 가서 부 제목만
+    왼쪽 단 끝에 남았다.)"""
+    def group(rs, cls="toc-group"):
+        return f'<div class="{cls}">{"".join(rs)}</div>'
+    if len(rows) <= 2 * keep:
+        return f'<div class="toc-keep">{head}{group(rows)}</div>'
+    return (f'<div class="toc-keep">{head}{group(rows[:keep])}</div>'
+            + group(rows[keep:-keep]) + group(rows[-keep:], "toc-group toc-keep"))
+
+
 first_ch = min(by_num.values()) if by_num else len(chapters)
 last_ch = max(by_num.values()) if by_num else -1
 
@@ -779,14 +792,12 @@ for part_title, nums in read_parts(lang):
         placed.add(i)
         rows.append(f'<a href="{names[i]}">{htmlmod.escape(chapters[i][0])}</a>')
     if rows:
-        toc_parts.append(f'<h4 class="toc-part">{htmlmod.escape(part_title)}</h4>'
-                         f'<div class="toc-group">{"".join(rows)}</div>')
+        toc_parts.append(toc_section(f'<h4 class="toc-part">{htmlmod.escape(part_title)}</h4>', rows))
 rest = [f'<a href="{names[i]}">{htmlmod.escape(chapters[i][0])}</a>'
         for i in range(len(chapters))
         if i not in placed and i > last_ch]
 if rest:
-    toc_parts.append(f'<h4 class="toc-part">{STR["extra"]}</h4>'
-                     f'<div class="toc-group">{"".join(rest)}</div>')
+    toc_parts.append(toc_section(f'<h4 class="toc-part">{STR["extra"]}</h4>', rest))
 toc = "".join(toc_parts)
 # ── 표지 — PDF 표제면의 내용을 목차 앞에 그대로 둔다 ─────────────
 version, status, updated = book_meta()

@@ -375,12 +375,13 @@ Searches headings and index terms --- not the full text
 
 - [31.1 The manifest and the project](ch31.md#s31-1)
 - [31.2 Dependencies are pinned by hash](ch31.md#s31-2)
-- [31.3 A different program per build — build option and config](ch31.md#s31-3)
-- [31.4 Tests](ch31.md#s31-4)
-- [31.5 How the compiler is verified](ch31.md#s31-5)
-- [31.6 Asking where it is slow](ch31.md#s31-6)
-- [31.7 Common mistakes](ch31.md#s31-7)
-- [31.8 This chapter’s syntax at a glance](ch31.md#s31-8)
+- [31.3 Installing a library, and adding a dependency by its address](ch31.md#s31-3)
+- [31.4 A different program per build — build option and config](ch31.md#s31-4)
+- [31.5 Tests](ch31.md#s31-5)
+- [31.6 How the compiler is verified](ch31.md#s31-6)
+- [31.7 Asking where it is slow](ch31.md#s31-7)
+- [31.8 Common mistakes](ch31.md#s31-8)
+- [31.9 This chapter’s syntax at a glance](ch31.md#s31-9)
 
 ### Part IX — The standard library
 

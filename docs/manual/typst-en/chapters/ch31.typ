@@ -107,6 +107,62 @@ This is how `verify` reports its four layers separately (measured on an unsigned
 
 Each layer is looked at on its own even when another is green. A successful TLS connection means the server is the right one, not that the bytes received are.
 
+== Installing a library, and adding a dependency by its address
+
+`lowentc install <file> [--user | --system | --prefix <folder>]` puts a library where other projects can use it (by default
+`~/.lowent/lib`). An install is finished when *a consumer's build works without the source folder*. So the installer follows the
+dependencies to the end, by the same rules the build uses, and decides what goes where before it writes anything.
+
+- Copied: files named by `from "<relative path>"`, sibling files named without a path (`use d .` and `d.low` in the same folder), and
+  files that `include_text` reads. The sub-folder layout is kept. A file that several modules use is installed once.
+- Referenced as they are: standard modules shipped with the tool.
+- Refused: a dependency that the source package's manifest (`pkg.low`) resolves, a URL, an absolute path, and a name that resolves
+  nowhere. A consumer could not find them. The installer stops with `E-INSTALL-UNSUPPORTED` *before writing anything* and names the
+  declaration and the chain that led to it. A path that leaves the package folder is `E-INSTALL-ESCAPE`; a file it cannot read is
+  `E-DEP-MISSING`.
+
+If the destination already holds different content under the same name, the install is refused with `E-INSTALL-CONFLICT` and that file
+is kept, because it may belong to another package. Identical content is shared. So installing the same thing again, or again after an
+install that stopped part-way, does not rewrite files that are already in place. Dependencies are written first and the main file, the
+one a consumer finds, last. If a write fails, only the files this call placed are removed. Two installs into the same destination take
+turns.
+
+```text
+$ lowentc install geom.low
+installed dep vecops → ~/.lowent/lib/sub/vecops.low
+installed geom → ~/.lowent/lib/geom.low (e3f7ccb5c541…) — 2 file(s) written, 0 already there
+
+$ lowentc install geom.low          # after editing the main file
+lowentc install: E-INSTALL-CONFLICT: ~/.lowent/lib/geom.low already exists with DIFFERENT content …
+```
+
+To move to a new version, remove the old file yourself and install again. The installer does not overwrite a file with different
+content. Files placed at the top of the user scope are found by name. So after `--user` installs a package whose main file calls the
+`d.low` beside it with `use d .`, building the source folder again under the same HOME stops with `E-NAME-RESERVED`: the source's
+`d.low` is read as shadowing the installed `d`. Writing the path in the source, `use d from "d.low" .`, avoids the clash.
+
+`lowentc add <name> <URL>` adds a dependency fetched from an address, as one manifest line. Whether to trust content seen for the first
+time is a person's decision. On a terminal the tool shows the BLAKE3 hash of what arrived and asks whether to record it. A script gives
+the hash it already has with `--hash`. With neither, nothing is downloaded: the tool prints the usage and stops.
+
+```text
+$ lowentc add webop https://example.org/webop.low
+  name    webop
+  source  https://example.org/webop.low
+  BLAKE3  4c3fe5ac1d41e624f84d13086622e6be5ae1980abd38417fc73c35daa0264466
+  … Record it in pkg.low? [y/N] y
+added webop from "https://example.org/webop.low" (pinned 4c3fe5ac1d41…) to pkg.low
+
+$ lowentc add webop https://example.org/webop.low --hash 4c3fe5ac…0264466   # in a script
+```
+
+The very bytes that were confirmed go into the content cache (`~/.lowent/cache`), so `lock`, `run` and `build` work after the server is
+gone. A file whose `module` declaration differs from the requested name is `E-ADD-NAME`; a different hash is `E-DEP-HASH`; a failed
+download is `E-PKG-FETCH`. Under the `local-only` policy a URL is refused before any download. Under `official-only`, accepting the hash
+is not enough: a trusted key must verify the publisher's signature (`E-POLICY-UNSIGNED`). On failure or cancel, `pkg.low` and `pkg.lock`
+stay byte for byte as they were. Repeating the same name, address and hash does not add a second line; a different declaration of the
+same name is reported as `E-PKG-DUP`. This command does not write the lock file; that is the job of `lock`.
+
 == A different program per build --- `build option` and `config`
 
 #demo("examples/ch31/knobs.low")
@@ -279,6 +335,7 @@ the slow path, used to see whether both paths give the same answer.
   [`package name "greeter" .` · `package version "0.1.0" .`], [the `pkg.low` manifest], [here, what is written is checked --- a closed set of keys],
   [`lowentc run` · `lowentc build`], [run the project on the VM · build into `out/`], [the manifest is found by walking upward],
   [`lowentc add <name> <place>` · `--lock-write` · `--lock`], [pin dependencies with hashes], [same version, different bytes: a different dependency],
+  [`lowentc install <file>` · `lowentc add <name> <URL> [--hash <hash>]`], [install a library with its dependencies · add a dependency by address], [the installed copy must work without the source · a person decides the first hash],
   [`build option smp bool default true .`], [a build knob --- `bool`·`int`·`choice`], [a knob nobody reads is `E-OPT-UNUSED`],
   [`config smp .` · `--config small.config`], [read a knob as a translation-time constant · a config file], [switched-off branches are checked too],
   [`test <name> do expect <condition> . end .` · `--test`], [test blocks and assertions], [failure is `E-TEST-FAIL` --- not a contract violation],
